@@ -1,3 +1,10 @@
+
+#' Extracts captured matches from match data obtained by 
+#' regexpr, gregexpr or regexec.
+#' This is authored by MrFlick. 
+#' See https://gist.github.com/MrFlick/10413321
+#' @param x the original text 
+#' @param m matched result from regexpr, gregexpr, regexec
 regcapturedmatches<-function(x,m) {
   
   if (length(x) != length(m))
@@ -71,4 +78,18 @@ regcapturedmatches<-function(x,m) {
   } else {
     y[[1]]
   }
+}
+
+#' Extract captured matches from text string. 
+#'
+#' @param text character string where mathes are sought
+#' @param pattern character string of regular expression  
+#'
+#' @return a data.frame whose rows are the matches and 
+#'         columns the matched groups
+#' @export
+re_matches <- function(text, pattern) {
+  gregexpr(pattern, text, perl=T) %>% 
+    regcapturedmatches(text, .) %>%
+    data.frame()
 }
