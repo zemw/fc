@@ -12,22 +12,18 @@ ceic_load <- function(file) {
   .series <- NULL   # store time series data
   .metadata <- NULL # store metadata of the series
   
-  re_data <- "(?<var>\\w*)\\s=\\stimeseries\\(\\[(?<value>.*?)],\\s\\{(?<index>.*?)\\}\\);"
-  re_name <- "(?<var>\\w*)\\.Name\\s=\\s'(?<name>.*?)';"
-  re_format <- "(?<var>\\w*)\\.TimeInfo\\.Format\\s=\\s'(?<format>.*?)';"
-  re_info <- "(?<var>\\w*)\\.UserData\\.seriesInfo\\s=\\sstruct\\((?<info>.*?)\\);"
-  re_key_value <- "'(?<key>\\w*)',(?<value>'.*?'|\\[.*?\\])"
-  
-  m_data <- re_matches(.raw_text, re_data) 
-  m_name <- re_matches(.raw_text, re_name) 
-  m_info <- re_matches(.raw_text, re_info) 
-  m_format <- re_matches(.raw_text, re_format) 
+  # extract various data fields from raw text by regular expression
+  m_data <- re_matches(.raw_text, "(?<var>\\w*)\\s=\\stimeseries\\(\\[(?<value>.*?)],\\s\\{(?<index>.*?)\\}\\);") 
+  m_name <- re_matches(.raw_text, "(?<var>\\w*)\\.Name\\s=\\s'(?<name>.*?)';") 
+  m_info <- re_matches(.raw_text, "(?<var>\\w*)\\.UserData\\.seriesInfo\\s=\\sstruct\\((?<info>.*?)\\);") 
+  m_format <- re_matches(.raw_text, "(?<var>\\w*)\\.TimeInfo\\.Format\\s=\\s'(?<format>.*?)';") 
   
   # extract metadata (key-value pairs) of a series from seriesInfo, and 
   # join the metadata of all series into one table.
   .metadata <-
     m_info %>% pmap(function(var, info) {
-      re_matches(info, re_key_value) %>%
+      # extract key-value pairs from data field `info`
+      re_matches(info, "'(?<key>\\w*)',(?<value>'.*?'|\\[.*?\\])") %>%
         mutate_if(is.character, ~ str_remove_all(., "\'")) %>%
         filter(key != "") %>%
         pivot_wider(names_from = key) 
@@ -108,7 +104,7 @@ ceic_load <- function(file) {
   ) # end of list
 }
 
-
+# Example of usage
 cki_m <- ceic_load("CKI_M.m")
 cki_q <- ceic_load("CKI_Q.m")
 
