@@ -25,7 +25,7 @@ ceic_load <- function(file) {
       # extract key-value pairs from data field `info`
       re_matches(info, "'(?<key>\\w*)',(?<value>'.*?'|\\[.*?\\])") %>%
         mutate_if(is.character, ~ str_remove_all(., "\'")) %>%
-        filter(key != "") %>%
+        filter(key != "", key != "functionInformation") %>%
         pivot_wider(names_from = key) 
     }) %>% reduce( ~ bind_rows(.x, .y)) 
   
@@ -80,7 +80,7 @@ ceic_load <- function(file) {
       
       output <- match.arg(output)
       if (output == 'df') {
-        data.frame(index=index(x), x) %>% as_tibble
+        data.frame(date=index(x), x) %>% as_tibble
       } else {
         x
       }
@@ -104,8 +104,8 @@ ceic_load <- function(file) {
   ) # end of list
 }
 
-# Example of usage
-cki_m <- ceic_load("CKI_M.m")
-cki_q <- ceic_load("CKI_Q.m")
+# # Example of usage
+# cki_m <- ceic_load("CKI_M.m")
+# cki_q <- ceic_load("CKI_Q.m")
 
 
