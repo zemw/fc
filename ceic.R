@@ -1,48 +1,77 @@
 library(tidyverse)
 library(magrittr)
+library(furrr)
 library(xts)
+library(re2r)
 
-source('regex.R')
 
-
-ceic_load <- function(file) {
+ceic_load <- function(file, parallel = FALSE) {
+  
+  # set up parallel computing
+  if (isTRUE(parallel))
+    future::plan(multisession)
   
   .raw_text <- read_file(file) # load matlab .m file
   
   .series <- NULL   # store time series data
   .metadata <- NULL # store metadata of the series
   
+  # regex matching that returns a data.frame with 
+  # captured groups as the columns
+  match_df <- function(txt, re, pl = parallel) {
+    ret <- re2_match_all(txt, re, parallel = pl)
+    ret_m <- unclass(ret[[1]])
+    data.frame(ret_m[,-1])
+  }
+  
   # extract various data fields from raw text by regular expression
-  m_data <- re_matches(.raw_text, "(?<var>\\w*)\\s=\\stimeseries\\(\\[(?<value>.*?)],\\s\\{(?<index>.*?)\\}\\);") 
-  m_name <- re_matches(.raw_text, "(?<var>\\w*)\\.Name\\s=\\s'(?<name>.*?)';") 
-  m_info <- re_matches(.raw_text, "(?<var>\\w*)\\.UserData\\.seriesInfo\\s=\\sstruct\\((?<info>.*?)\\);") 
-  m_format <- re_matches(.raw_text, "(?<var>\\w*)\\.TimeInfo\\.Format\\s=\\s'(?<format>.*?)';") 
+  # run these matching in parallel to speed up processing
+  m_data <- match_df(.raw_text, "(?P<var>\\w*)\\s=\\stimeseries\\(\\[(?P<value>.*?)],\\s\\{(?P<index>.*?)\\}\\);") 
+  m_name <- match_df(.raw_text, "(?P<var>\\w*)\\.Name\\s=\\s'(?P<name>.*?)';") 
+  m_info <- match_df(.raw_text, "(?P<var>\\w*)\\.UserData\\.seriesInfo\\s=\\sstruct\\((?P<info>.*?)\\);") 
+  m_format <- match_df(.raw_text, "(?P<var>\\w*)\\.TimeInfo\\.Format\\s=\\s'(?P<format>.*?)';") 
   
-  # extract metadata (key-value pairs) of a series from seriesInfo, and 
-  # join the metadata of all series into one table.
-  .metadata <-
-    m_info %>% pmap(function(var, info) {
-      # extract key-value pairs from data field `info`
-      re_matches(info, "'(?<key>\\w*)',(?<value>'.*?'|\\[.*?\\])") %>%
-        mutate_if(is.character, ~ str_remove_all(., "\'")) %>%
-        filter(key != "", key != "functionInformation") %>%
-        pivot_wider(names_from = key) 
-    }) %>% reduce( ~ bind_rows(.x, .y)) 
+  # extract metadata (key-value pairs) of a series from seriesInfo
+  extract_info <- function(var, info) {
+    # extract key-value pairs from data field `info`
+    match_df(info, "'(?P<key>\\w*)',(?P<value>'.*?'|\\[.*?\\])", FALSE) %>%
+      mutate_if(is.character, ~ str_remove_all(., "\'")) %>%
+      filter(key != "", key != "functionInformation") %>%
+      pivot_wider(names_from = key) 
+  }
   
+  # run through every match and join the results into one table
+  if (isTRUE(parallel)) {
+    # future_pmap runs the map in parallel
+    .metadata <- m_info %>% 
+      future_pmap(extract_info, .options = furrr_options(seed = TRUE)) %>% 
+      reduce( ~ bind_rows(.x, .y)) 
+  } else {
+    .metadata <- m_info %>% 
+      pmap(extract_info) %>% 
+      reduce( ~ bind_rows(.x, .y)) 
+  }
+
   # extract times series dates and values from text
-  # return a list of xts objects
-  .series <-
-    m_data %>% pmap(function(var, value, index) {
-      values <- str_split(value, ';')[[1]]
-      dates <- str_split(index, ',')[[1]]
-      xts(as.numeric(values), lubridate::mdy(dates))
-    })
+  extract_data <- function(var, value, index) {
+    values <- str_split(value, ';')[[1]]
+    dates <- str_split(index, ',')[[1]]
+    xts(as.numeric(values), lubridate::mdy(dates))
+  }
+  
+  # run through every match and return a list of xts objects
+  if (isTRUE(parallel)) {
+    .series <- m_data %>%
+      future_pmap(extract_data, .options = furrr_options(seed = TRUE))
+  } else {
+    .series <- m_data %>% 
+      pmap(extract_data)
+  }
   names(.series) <- .metadata$seriesId
   
   
   ## return a list of functions
   list(
-    
     # query metadata of series by keywords in names
     query = function(keyword = NULL) {
       if (!is.null(keyword)) {
@@ -103,9 +132,3 @@ ceic_load <- function(file) {
     
   ) # end of list
 }
-
-# # Example of usage
-# cki_m <- ceic_load("CKI_M.m")
-# cki_q <- ceic_load("CKI_Q.m")
-
-
