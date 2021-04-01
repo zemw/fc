@@ -1,0 +1,243 @@
+---
+title: "Financial Cycles in China"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r load, include=FALSE}
+source("ceic.R")
+source("filter.R")
+
+# Load: China Key Indicators Monthly
+cki_m <- ceic_load("CKI_M.m")
+
+# Load: China Key Indicators Quarterly
+cki_q <- ceic_load("CKI_Q.m")
+```
+
+
+```{r, include=FALSE}
+monthly_series <- list(
+  CPI = "5716201",    # CPI MoM
+  R007 = "7061001",   # Interbank 7-day repo rate
+  House = "4006901",   # Commodity Bldg Selling Price: YTD Average
+  AFRE = "365867277"  # Aggregate Financing to the Real Economy
+)
+
+data_m <- cki_m$fetch(
+  seriesId = as.character(monthly_series), 
+  rename_cols = names(monthly_series)
+  ) %>%
+  # accumulate MoM difference to index
+  mutate(CPI = CPI - 100) %>%
+  mutate(CPI = cumsum(CPI) + 100) %>%
+  # convert monthly data to quarterly
+  condense_period(
+    .date_var = date, 
+    .period = "quarter", 
+    .side = "end"
+  ) 
+```
+
+
+```{r, include=FALSE}
+quarterly_series <- list(
+  GDP = "369703417", 
+  Credit = "371938917"  # Credit to Non-financial Sector
+)
+
+data_q <-  cki_q$fetch(
+  seriesId = as.character(quarterly_series), 
+  rename_cols = names(quarterly_series)
+  ) %>%
+  # calculate credit to GDP ratio
+  mutate(`Credit/GDP` = Credit/GDP)
+```
+
+"Total credit" comprises financing from all sources, including domestic banks, other domestic financial corporations, non-financial corporations and non-residents.
+The financial instruments covered comprise currency and deposits, loans and debt securities. 
+Debt securities include bonds and short-term papers; equities, insurance, pension funds are not included.
+The correlation between BIS credit and AFRE after 2014 is 0.9944.
+Therefore, I use only total credit for consistency.
+
+```{r, include=FALSE}
+tmp <- full_join(data_m, data_q, by = "date") %>%
+  select(date, Credit, AFRE) %>%
+  filter_by_time(
+    date, 
+    .start_date = "2014-03", 
+    .end_date = "2019-12"
+  ) 
+cor(tmp$Credit, tmp$AFRE) # 0.994411
+```
+
+The data range is from 1999. First due to data availability; Secondly, China took a major reform in the housing market in July 1998, since when housing properties can be freely traded in the market. 
+
+```{r, results='hide'}
+data <- 
+  full_join(data_m, data_q, by = "date") %>%
+  select(date, GDP, CPI, House, Credit, `Credit/GDP`, R007) %>% 
+  filter_by_time(date, .start_date = "1999-03", .end_date = "2019-12") 
+
+data %>%
+  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+  ggplot(aes(x = date, y = value)) +
+  facet_wrap(~indicator, scales = "free_y") + 
+  geom_line() + labs(x = NULL, y = NULL)
+```
+
+
+```{r spectrum, include=FALSE}
+plot_spectrum <- function(x, log=FALSE) {
+  name <- quo_name(enquo(x))
+  sp <- spectrum(x, plot=FALSE)
+  tibble(freq = sp$freq, spec = sp$spec) %>%
+    mutate(period = 1/freq) %>%
+    ggplot(aes(freq, spec)) +
+    # scale_y_log10() +
+    geom_line() + 
+    labs(y = name)
+}
+plot_spectrum(data$GDP)
+```
+
+Spectrum analysis suggests GDP series has a mild 4-year cycle, CPI a 4-year cycle, 
+property price 3-4 years cycle, credit a strong 4-5 years cycle and a mild 2 year cycle,
+interest rate a strong 3.5 years cycle.
+
+```{r, results='hide'}
+
+data_s <- data %>%
+  # log before or after seasonal adjustment are almost identical
+  mutate_at(vars(GDP, Credit, House), ~log(.)) %>%
+  # apply seasonal adjustment to all series
+  mutate_at(vars(-date), ~ x11_adjust(., index = date) %$% final) %>%
+  # apply HP filter to all series
+  mutate_at(vars(-date), ~ hp_filter(., .lambda = 1600) %$% cycle) %>%
+  # normalize by standard deviation (mean = 0)
+  mutate_at(vars(-date), ~ ./sd(.))
+
+# transformed data
+# data_s %>% skimr::skim()
+
+data_s %>%
+  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+  ggplot(aes(x = date, y = value)) + 
+  facet_wrap(~indicator) + 
+  geom_line() + labs(x = NULL, y = NULL)
+```
+
+
+```{r, message=FALSE}
+data_s %>% GGally::ggpairs(columns = 2:7)
+```
+
+```{r}
+# Identify turning point using Harding and Pagan algorithm
+# The medium-term window has 9 quarters
+#  - Y_t is the peak if it is the maximum within the window
+#  - Y_t is the trough if it is the minimum within the window
+data_t <- data_s %>%
+  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+  group_by(indicator) %>%
+  mutate(peak = slide_dbl(
+    value,  
+    function(x) {
+      mid <- (length(x) + 1) / 2
+      if (which.max(x) == mid) x[mid]
+      else NA
+    },
+    .before = 4, .after = 4, .complete = F)
+  ) %>%
+  mutate(trough = slide_dbl(
+    value,  
+    function(x) {
+      mid <- (length(x) + 1) / 2
+      if (which.min(x) == mid) x[mid]
+      else NA
+    },
+    .before = 4, .after = 4, .complete = F)
+  ) %>%
+  arrange(.by_group = T)
+```
+
+
+
+```{r}
+# this function is used to count the number of cycles
+count_nonNA <- (function() {
+  # counter inside closure
+  .counter <- 0L 
+  # for each group, reset the counter
+  .group <- 'default'
+  # return this function
+  function(value, group = 'default') {
+    if (group != .group) {
+      .group <<- group
+      .counter <<- 0L
+    }
+    if (!is.na(value)) {
+      .counter <<- .counter + 1L
+    }
+    return(.counter)
+  }
+})()
+
+# compute peak/trough cycles: periods between two peaks (or troughs)
+# each non-NA value in `peak` or `trough` indicates 
+# the start or end of a cycle
+data_t %<>%
+  group_by(indicator) %>%
+  mutate(peak_cycle= map2_int(peak, indicator, count_nonNA)) %>%
+  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
+```
+
+```{r}
+# We restrict peaks and troughs must appear alternately, i.e. 
+# - between two peaks, there is only one trough
+# - between two troughs, there is only one peak
+data_t %<>%
+  group_by(indicator, peak_cycle) %>% 
+  mutate(trough = (function(x) {
+      if (all(is.na(x))) x
+      else {
+        # if there are non-minimal values within two peaks
+        # assign those values to NA
+        min_x <- min(x, na.rm = T)
+        x %>% map_dbl(~ if_else(. > min_x, NA_real_, .))
+      }
+    })(trough)
+  )  
+
+data_t %<>%
+  group_by(indicator, trough_cycle) %>% 
+  mutate(peak = (function(x) {
+      if (all(is.na(x))) x
+      else {
+        # if there are non-maximal values within two troughs
+        # assign those values to NA
+        max_x <- max(x, na.rm = T)
+        x %>% map_dbl(~ if_else(. < max_x, NA_real_, .))
+      }
+    })(peak)
+  ) 
+
+# after correcting turning points, recompute peak/trough cycles
+data_t %<>%
+  group_by(indicator) %>%
+  mutate(peak_cycle = map2_int(peak, indicator, count_nonNA)) %>%
+  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
+```
+
+```{r, warning=FALSE}
+data_t %>%
+  ggplot(aes(x=date)) +
+  geom_line(aes(y=value)) +
+  geom_point(aes(y=peak), shape=24, fill="blue") +
+  geom_point(aes(y=trough), shape=21, fill="red") +
+  facet_wrap(~indicator) + 
+  labs(x=NULL, y=NULL) 
+```
