@@ -5,6 +5,7 @@ library(seasonal)
 library(mFilter)
 library(timetk)
 library(rlang)
+library(slider)
 
 # X11 seasonal adjustment
 x11_adjust <- function(x, index = NULL) {
