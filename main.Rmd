@@ -1,6 +1,9 @@
 ---
 title: "Financial Cycles in China"
-output: html_document
+output:
+  html_document: default
+  pdf_document: 
+    keep_tex: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -10,6 +13,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r load, include=FALSE}
 source("ceic.R")
 source("filter.R")
+library(kableExtra)
 
 # Load: China Key Indicators Monthly
 cki_m <- ceic_load("CKI_M.m")
@@ -77,14 +81,18 @@ cor(tmp$Credit, tmp$AFRE) # 0.994411
 The data range is from 1999. First due to data availability; Secondly, China took a major reform in the housing market in July 1998, since when housing properties can be freely traded in the market. 
 
 ```{r, results='hide'}
+# combine all data: un-adjusted time series 
 data <- 
   full_join(data_m, data_q, by = "date") %>%
   select(date, GDP, CPI, House, Credit, `Credit/GDP`, R007) %>% 
   filter_by_time(date, .start_date = "1999-03", .end_date = "2019-12") 
 
+# plot seasonally-adjusted time series
 data %>%
   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
-  ggplot(aes(x = date, y = value)) +
+  group_by(indicator) %>%
+  mutate(value_sa = x11_adjust(value, date) %$% final) %>%
+  ggplot(aes(x = date, y = value_sa)) +
   facet_wrap(~indicator, scales = "free_y") + 
   geom_line() + labs(x = NULL, y = NULL)
 ```
@@ -110,30 +118,39 @@ interest rate a strong 3.5 years cycle.
 
 ```{r, results='hide'}
 
-data_s <- data %>%
+# extract cyclical components from the time series
+data_cyl <- data %>%
   # log before or after seasonal adjustment are almost identical
   mutate_at(vars(GDP, Credit, House), ~log(.)) %>%
-  # apply seasonal adjustment to all series
   mutate_at(vars(-date), ~ x11_adjust(., index = date) %$% final) %>%
-  # apply HP filter to all series
-  mutate_at(vars(-date), ~ hp_filter(., .lambda = 1600) %$% cycle) %>%
-  # normalize by standard deviation (mean = 0)
+  mutate_at(vars(-date), ~ hp_filter(., .lambda = 1600) %$% cycle)
+
+# standarize the cycles by standard deviation (mean = 0)
+data_s <- data_cyl %>%
   mutate_at(vars(-date), ~ ./sd(.))
 
 # transformed data
 # data_s %>% skimr::skim()
+```
 
+```{r}
+# plot cyclical components of the series
 data_s %>%
   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
   ggplot(aes(x = date, y = value)) + 
   facet_wrap(~indicator) + 
-  geom_line() + labs(x = NULL, y = NULL)
+  geom_line() + 
+  labs(x = NULL, y = NULL)
 ```
 
+
+## Correlation between series
 
 ```{r, message=FALSE}
 data_s %>% GGally::ggpairs(columns = 2:7)
 ```
+
+## Identifying turning point
 
 ```{r}
 # Identify turning point using Harding and Pagan algorithm
@@ -163,7 +180,6 @@ data_t <- data_s %>%
   ) %>%
   arrange(.by_group = T)
 ```
-
 
 
 ```{r}
@@ -241,3 +257,132 @@ data_t %>%
   facet_wrap(~indicator) + 
   labs(x=NULL, y=NULL) 
 ```
+
+```{r}
+# merge peaks and troughs together
+# each peak-to-trough or trough-to-peak is counted 
+data_t %<>%
+  group_by(indicator) %>%
+  mutate(peak_trough = if_else(!is.na(peak), peak, trough)) %>%
+  mutate(peak_trough_cycle = map2_int(peak_trough, indicator, count_nonNA)) 
+```
+
+
+## Concordance index
+
+```{r}
+# impute value 1 or 0 to upturn or downturn phases
+data_up_down <- data_t %>%
+  group_by(indicator, peak_trough_cycle) %>%
+  mutate(is_upturn = if_else(
+    all(is.na(peak_trough)), 
+    NA_real_, 
+    # 1 indicate an upturn, 0 indicate a downturn
+    if_else(sum(peak_trough, na.rm = T) < 0, 1, 0)
+  )) %>%
+  ungroup() %>%
+  select(date, indicator, is_upturn) %>%
+  pivot_wider(names_from = indicator, values_from = is_upturn) %>%
+  filter_by_time(date, .start_date = "2000-09") # omit all NA rows
+```
+
+```{r, warning=FALSE}
+data_up_down %>%
+  select(-date) %>%
+  map(function(each, others) {
+    map_dbl(others, ~ sum(.x*.y + (1-.x)*(1-.y), na.rm = T)/length(.x), each)
+  }, data_up_down %>% select(-date)) %>%
+  as_tibble(rownames = NA) -> concord
+rownames(concord) <- names(concord)
+
+concord %>% 
+  rownames_to_column(var = "Variables") %>%
+  kbl(digits = 2, caption = "Concordance between variables") %>%
+  kable_styling(full_width = F)
+```
+
+```{r, message=FALSE}
+# calculate the duration (number of quarters) of 
+# each contraction or expansion cycle
+stat_1 <- data_t %>% 
+  group_by(indicator, peak_trough_cycle) %>%
+  summarise(n = n(), min_max = sum(peak_trough, na.rm = T)) %>%
+  mutate(phase = case_when(
+    min_max > 0 ~ "Contraction", 
+    min_max < 0 ~ "Expansion"
+  )) %>% 
+  filter(!is.na(phase)) %>%
+  group_by(indicator, phase) %>%
+  summarise(duration = mean(n)) 
+stat_1
+```
+
+
+```{r, message=FALSE}
+# calculate the amplitude of each cycle
+# we use non-standardized cyclical series to reflect true order of magnitude
+stat_2 <- data_cyl %>% 
+  pivot_longer(2:7, names_to = "indicator",values_to = "value") %>%
+  left_join(
+    data_t %>% select(date, indicator, peak_trough, peak_trough_cycle), 
+    by = c("date", "indicator")
+  ) %>%
+  group_by(indicator, peak_trough_cycle) %>%
+  arrange(.by_group = T) %>%
+  summarize(
+    min_max = sum(peak_trough, na.rm = T),
+    # the amplitude means the maximal percentage deviation from the trend
+    # since the trend is log transformed 
+    amplitude = (max(value) - min(value)) 
+  ) %>%
+  mutate(phase = case_when(
+    min_max > 0 ~ "Contraction", 
+    min_max < 0 ~ "Expansion"
+  )) %>% 
+  mutate(
+    amplitude = if_else(
+      phase == "Contraction", -amplitude, amplitude)
+  ) %>% 
+  mutate(
+    amplitude = if_else(
+      indicator %in% c("GDP", "Credit", "House"), 
+      amplitude * 100, amplitude
+    )
+  ) %>%
+  filter(!is.na(phase)) %>%
+  group_by(indicator, phase) %>%
+  summarise(amplitude = mean(amplitude)) 
+```
+
+```{r}
+
+# reshape the table for printing
+bind_rows(
+  stat_1 %>%
+    pivot_wider(names_from = phase, values_from = duration) %>%
+    mutate(Variable = "Duration (Q)"),
+  stat_2 %>%
+    pivot_wider(names_from = phase, values_from = amplitude) %>%
+    mutate(
+      Variable = if_else(
+        indicator %in% c("GDP", "Credit", "House"), 
+        "Amplitude (%)", "Amplitude (pp.)"
+      )
+    )
+  ) %>%
+  group_by(indicator) %>%
+  arrange(.by_group = T) %>%
+  mutate(`Full Cycle` = if_else(
+    Variable == "Duration (Q)", 
+    Contraction + Expansion, 
+    NA_real_)
+  ) %>%
+  select(Indicator = indicator, Variable, everything()) -> stat_3
+
+kbl(stat_3, digits = 2, 
+    caption = "Basic features of China's financial cycles") %>%
+  collapse_rows(columns = 1) %>%
+  kable_styling(full_width = F)
+```
+
+
