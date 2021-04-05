@@ -1,0 +1,525 @@
+---
+title: Financial Cycles in China
+#date: "`r Sys.Date()`"
+authors:
+  - name: Z. WANG
+    email: zem.wang@anu.edu.au
+    address: Australian National University
+abstract: |
+  This is the abstract.
+keywords:
+  - key
+  - dictionary
+  - word
+#fontsize: 12pt
+#spacing: halfline # could also be oneline
+#classoptions:
+#  - endnotes
+bibliography: mybibfile.bib
+csl: apa_7th_edition.csl
+output: rticles::oup_article
+#header-includes:
+#  - \usepackage[nomarkers,tablesfirst]{endfloat} # For figures and tables at end
+#  - \usepackage{lineno} # For line numbering
+#  - \linenumbers # For line numbering
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, error = F) 
+knitr::opts_chunk$set(fig.pos = 'h', fig.align = 'center') 
+knitr::opts_chunk$set(out.width = '100%', dpi=300) # Figure resolution and size
+knitr::opts_chunk$set(fig.env="figure") # Latex figure environment
+```
+
+# Introduction
+
+The Global Financial Crisis has triggered a rethink of the role of finance to the real economy. 
+Though the view that financial factors generate economic fluctuations has been along for centuries, 
+the mainstream neoclassical thinking is that "money is a veil" and financial institutions are just 
+intermediaries which alters no substance in the real economy. 
+
+However, the onset of GFC demonstrated the great disruptions that financial factors could bring about. 
+It is clear that the relationship between the "Wall Street" and the "Main Street" is not fully 
+captured by just interest rates -- as it is commonly assumed in neoclassical literature. 
+
+After the GFC, growing efforts have been devoted to bridge the gap between finance and real economy. 
+On the theoretical side, notably, Gertler and Kiyotaki (2011). 
+Empirical literature have focused on capturing the regularities of financial cycles 
+and how it intereacts with real business cycles (Claessens, 2011).
+
+
+# Data and methodology
+
+```{r load, include=FALSE}
+library(kableExtra)
+
+source("../script/ceic.R")
+source("../script/filter.R")
+
+cki_m <- ceic_load("../data/CKI_M.m") # monthly 
+cki_q <- ceic_load("../data/CKI_Q.m") # quarterly
+```
+
+## Choice of variables
+
+I choose three indicators to characterize the financial cycles: credit, house price and credit to GDP ratio.
+Credit reflects the aggregate claims created by the financial system, which is a natural choice to represent financial cycles. 
+Credit is also regarded by some as the single most powerful indicator for financial crisis [@Schularick2012]. 
+In this paper, I use the Total Credit to the Non-Financial Sector from the BIS credit statistics.
+^[BIS total credit comprises financing from all sources, including domestic banks, 
+other domestic financial corporations, non-financial corporations and non-residents.
+The financial instruments covered comprise currency and deposits, loans and debt securities. 
+Debt securities include bonds and short-term papers; equities, insurance, pension funds are not included.
+In Chinese literature, the Aggregate Financing to the Real Economy (AFRE) indicator is more widely used. 
+However, the AFRE statistics are only available yearly after 2002, and monthly after 2014. 
+The coverage of BIS total credit and AFRE largely overlapped. 
+The correlation between BIS total credit and AFRE after 2014 is 0.9944.
+To preserve consistency in data, BIS total credit is used throughout in this paper.]
+To measure how much credit is "over-expanded" relative to the size of the economy, 
+credit to GDP ratio is calculated and included as a separate indicator. 
+
+House price is another important indicator of financial cycles. 
+House properties, though being real estate, have many similar characteristics as financial assets. 
+As the most commonly accepted collateral for credit, house prices capture the endogenous relationship between entities' net worth, borrowing constraints, and credit creation. 
+Strong evidence suggests household leverage (mainly through mortgage loans) influences business cycles through credit supply channels [@Mian2017]. 
+In this paper, I use the Average Price of Commercial Residential Buildings from the National Bureau of Statistics as a measure of house prices.
+^[This only includes a portion of the total residential properties in China, indemnificatory housing and other types of public-built private-owned housing are not included in this statistics. 
+But narrowing down to privately traded residential properties is a better choice to reflect market conditions.
+In Chinese literature, other indicators, such as average house price of 70 major cities, are more widely used. 
+However, these indicators are only available for recent years. 
+The indicator chosen in this paper traced the house prices back to 1998, the beginning of China's housing reform.  ]
+
+The data are at quarterly frequency, ranging from 1999 to 2019. 
+The data starts from 1999, firstly due to the data availability; 
+secondly, considering China took a major reform in the housing market in July 1998 -- 
+since then residential properties can be freely traded in the market -- 
+the house prices before 1999 have little value for the purpose of this paper. 
+The time series are seasonally adjusted whenever necessary. 
+^[Except for GDP, I do not adjust the data for inflation. 
+For the purpose of studying financial cycles, it is the nominal values that matter. ]
+The original time series of the main indicators are depicted in Figure \ref{fig:raw_data}.
+
+```{r}
+monthly_series <- list(
+  CPI = "5716201",    # CPI MoM
+  R007 = "7061001",   # Interbank 7-day repo rate
+  House = "4006901",   # Commodity Bldg Selling Price: YTD Average
+  AFRE = "365867277"  # Aggregate Financing to the Real Economy
+)
+
+cki_m$fetch(
+  seriesId = as.character(monthly_series), 
+  rename_cols = names(monthly_series)
+  ) %>%
+  # convert MoM difference to index
+  mutate(CPI = CPI - 100) %>%
+  mutate(CPI = cumsum(CPI) + 100) %>%
+  # convert monthly data to quarterly
+  condense_period(
+    .date_var = date, 
+    .period = "quarter", 
+    .side = "end"
+  ) -> data_m
+
+quarterly_series <- list(
+  GDP = "369703417", 
+  Credit = "371938917"  # Credit to Non-financial Sector
+)
+
+cki_q$fetch(
+  seriesId = as.character(quarterly_series), 
+  rename_cols = names(quarterly_series)
+  ) %>%
+  mutate(`Credit/GDP` = Credit/GDP) -> data_q
+
+# combine all data: un-adjusted time series 
+data_raw <- 
+  full_join(data_m, data_q, by = "date") %>%
+  select(date, GDP, CPI, House, Credit, `Credit/GDP`, R007) %>% 
+  filter_by_time(date, .start_date = "1999-03", .end_date = "2019-12") 
+```
+
+
+```{r raw_data, fig.height=3.5, fig.cap = "Time series of main indicators (seasonally-adjusted)" }
+# plot seasonally-adjusted time series
+data_raw %>%
+  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+  group_by(indicator) %>%
+  mutate(value_sa = x11_adjust(value, date) %$% final) %>%
+  ggplot(aes(x = date, y = value_sa)) +
+  facet_wrap(~indicator, scales = "free_y") + 
+  geom_line() + labs(x = NULL, y = NULL)
+```
+
+```{r, include=FALSE}
+# test the correlation between BIS credit and AFRE
+data_tmp <- full_join(data_m, data_q, by = "date") %>%
+  select(date, Credit, AFRE) %>%
+  filter_by_time(
+    .date_var = date, 
+    .start_date = "2014-03", 
+    .end_date = "2019-12"
+  ) 
+cor(data_tmp$Credit, data_tmp$AFRE) # 0.994411
+```
+
+## Cycle extraction
+
+There are many methodologies to identify cycles in macroeconomic variables. 
+The classical method tracks absolute increase or decrease of economic activities. 
+For example, a recession is identified by two consecutive quarters of declines of GDP.
+However, this "classical" business cycle definition is not suitable for fast-growing economies,
+in which macroeconomic variables are constantly in upward movement. 
+For fast-growing economies, the "growth cycle methodology" is more appropriate, 
+which identifies cycles as fluctuations around a trend. 
+In this paper, I apply the Hodrick-Prescott (HP) filter to extract the cyclical components from the time series.
+^[The lambda value is set to 1600 for quarterly data as suggested by @Hodrick1997. 
+There are other methods used for cycle extraction in the literature. 
+For example, @Mayong2016 applied HP filter to YoY changes of variables. 
+This method is problematic, because HP filter is designed to obtain trends by smoothing out short-term fluctuations. Performing year-to-year difference by default removes the trend.
+Another popular approach is to apply Bank-Pass filters such as Christiano-Fitzgerald (CF) filter.
+This is the approach adopted by @Drehmann2012 and @Taihui2018. 
+However, CF filter pre-imposes the length of the cycle to be within a certain band. 
+According to @Drehmann2012, the short-term cycles are between 1 and 8 years, and
+mid-term cycles are between 8 to 30 years. 
+Since China's data is available for merely 20 years, applying the CF filter is unnecessary and 
+bears the risk of losing too much information.
+]
+Log-transformation is applied to variables that grow proportionately to their sizes
+such as GDP, credit and house prices. 
+The magnitude of the cycles are standardized by their starndard deviation.
+
+
+```{r}
+
+# extract cyclical components from the time series
+data_cyl <- data_raw %>%
+  # log before or after seasonal adjustment are almost identical
+  mutate_at(vars(GDP, Credit, House), ~log(.)) %>%
+  mutate_at(vars(-date), ~ x11_adjust(., index = date) %$% final) %>%
+  mutate_at(vars(-date), ~ hp_filter(., .lambda = 1600) %$% cycle)
+
+# standardize the cycles by standard deviation (mean = 0)
+data_cyl_std <- data_cyl %>%
+  mutate_at(vars(-date), ~ ./sd(.))
+
+# transformed data
+# data_s %>% skimr::skim()
+```
+
+@Harding2002's (medium-term) turning-point algorithm is then applied to identify peaks and troughs of the cycles. Specifically, the algorithm involves two steps:
+(1) identifying local maxima and minima over a window of 9 quarters; 
+(2) imposing censoring rules that the minimum length of each phase of upturn or downturn is 2 quarters;
+Further, I impose a third restriction: 
+(3) peaks and troughs must appear alternately, that is there must be one and only one peaks (troughs) between two troughs (peaks).
+Figure \ref{fig:cyl_tp} plots the HP filtered cycles of the variables together with the identified turning points.
+
+```{r}
+# Identify turning point using Harding and Pagan algorithm
+# The medium-term window has 9 quarters
+#  - Y_t is the peak if it is the maximum within the window
+#  - Y_t is the trough if it is the minimum within the window
+data_peak_trough <- data_cyl_std %>%
+  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+  group_by(indicator) %>%
+  mutate(peak = slide_dbl(
+    value,  
+    function(x) {
+      mid <- (length(x) + 1) / 2
+      if (which.max(x) == mid) x[mid]
+      else NA
+    },
+    .before = 4, .after = 4, .complete = F)
+  ) %>%
+  mutate(trough = slide_dbl(
+    value,  
+    function(x) {
+      mid <- (length(x) + 1) / 2
+      if (which.min(x) == mid) x[mid]
+      else NA
+    },
+    .before = 4, .after = 4, .complete = F)
+  ) %>%
+  arrange(.by_group = T)
+```
+
+```{r}
+# this function is used to count the number of cycles
+count_nonNA <- (function() {
+  # counter inside closure
+  .counter <- 0L 
+  # for each group, reset the counter
+  .group <- 'default'
+  # return this function
+  function(value, group = 'default') {
+    if (group != .group) {
+      .group <<- group
+      .counter <<- 0L
+    }
+    if (!is.na(value)) {
+      .counter <<- .counter + 1L
+    }
+    return(.counter)
+  }
+})()
+
+# compute peak/trough cycles: periods between two peaks (or troughs)
+# each non-NA value in `peak` or `trough` indicates 
+# the start or end of a cycle
+data_peak_trough %<>%
+  group_by(indicator) %>%
+  mutate(peak_cycle= map2_int(peak, indicator, count_nonNA)) %>%
+  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
+```
+
+```{r}
+# We restrict peaks and troughs must appear alternately, i.e. 
+# - between two peaks, there is only one trough
+# - between two troughs, there is only one peak
+data_peak_trough %<>%
+  group_by(indicator, peak_cycle) %>% 
+  mutate(trough = (function(x) {
+      if (all(is.na(x))) x
+      else {
+        # if there are non-minimal values within two peaks
+        # assign those values to NA
+        min_x <- min(x, na.rm = T)
+        x %>% map_dbl(~ if_else(. > min_x, NA_real_, .))
+      }
+    })(trough)
+  )  
+
+data_peak_trough %<>%
+  group_by(indicator, trough_cycle) %>% 
+  mutate(peak = (function(x) {
+      if (all(is.na(x))) x
+      else {
+        # if there are non-maximal values within two troughs
+        # assign those values to NA
+        max_x <- max(x, na.rm = T)
+        x %>% map_dbl(~ if_else(. < max_x, NA_real_, .))
+      }
+    })(peak)
+  ) 
+
+# after correcting turning points, recompute peak/trough cycles
+data_peak_trough %<>%
+  group_by(indicator) %>%
+  mutate(peak_cycle = map2_int(peak, indicator, count_nonNA)) %>%
+  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
+```
+
+```{r}
+# this is a trick that generates -1, 1, -1, 1,... sequence
+ss_substract <- function(x, y) {
+  z <- x - y
+  if (sum(z) > 0) 
+    z[z==0L] <- -1L
+  else if (sum(z) < 0) 
+    z[z==0L] <- 1L
+  z
+}
+
+# merge peaks and troughs together
+# each peak-to-trough or trough-to-peak is counted 
+data_peak_trough %<>%
+  group_by(indicator) %>%
+  mutate(peak_trough = if_else(!is.na(peak), peak, trough)) %>%
+  # 1 means a upturn phase; -1 means a downturn phase
+  mutate(up_down = ss_substract(trough_cycle, peak_cycle)) %>%
+  mutate(peak_trough_cycle = (peak_cycle + trough_cycle) * up_down)
+```
+
+```{r cyl_tp, fig.cap="Cyclical components and turning points"}
+# plotting the cycles together with the turning points
+data_peak_trough %>%
+  ggplot(aes(x=date)) +
+  geom_line(aes(y=value)) +
+  geom_point(aes(y=peak), shape=24, fill="blue") +
+  geom_point(aes(y=trough), shape=21, fill="red") +
+  facet_wrap(~indicator) + 
+  labs(x=NULL, y=NULL) 
+```
+
+
+# Business and financial cycles: basic features
+
+## Duration and amplitude
+
+
+```{r}
+# calculate the duration (number of quarters) of 
+# each contraction or expansion cycle
+stat_duration <- data_peak_trough %>% 
+  group_by(indicator, peak_trough_cycle) %>%
+  summarise(n = n()) %>%
+  mutate(phase = case_when(
+    peak_trough_cycle > 0 ~ "Upturn", 
+    peak_trough_cycle < 0 ~ "Downturn"
+  )) %>% 
+  filter(!is.na(phase)) %>%
+  group_by(indicator, phase) %>%
+  summarise(duration = mean(n)) 
+```
+
+```{r}
+# calculate the amplitude of each cycle
+# we use non-standardized cyclical series to reflect true order of magnitude
+stat_amplitude <- data_cyl %>% 
+  pivot_longer(2:7, names_to = "indicator",values_to = "value") %>%
+  left_join(
+    data_peak_trough %>% select(date, indicator, peak_trough, peak_trough_cycle), 
+    by = c("date", "indicator")
+  ) %>% 
+  group_by(indicator) %>%
+  arrange(.by_group = TRUE) %>%
+  # creating a leading vector, the number represents the peak or trough \
+  # in a upturn or downturn phase
+  mutate(peak_trough_1 = dplyr::lead(peak_trough, order_by = date)) %>%
+  group_by(indicator, peak_trough_cycle) %>%
+  summarize(
+    # the amplitude means the maximal percentage deviation from the trend
+    # since the trend is log transformed 
+    amplitude = sum(peak_trough_1, na.rm=T)
+  ) %>%
+  mutate(phase = case_when(
+    peak_trough_cycle > 0 ~ "Upturn", 
+    peak_trough_cycle < 0 ~ "Downturn"
+  )) %>% 
+  filter(peak_trough_cycle != 0, amplitude != 0) %>%
+  group_by(indicator, phase) %>%
+  summarise(amplitude = mean(amplitude)) 
+```
+
+```{r dur_amp}
+# reshape the table for printing
+bind_rows(
+  # duration table
+  stat_duration %>%
+    pivot_wider(names_from = phase, values_from = duration) %>%
+    mutate(Variable = "Duration (Q)"),
+  # amplitude table
+  stat_amplitude %>%
+    pivot_wider(names_from = phase, values_from = amplitude) %>%
+    mutate(
+      Variable = if_else(
+        indicator %in% c("GDP", "Credit", "House"), 
+        "Amplitude (%)", 
+        "Amplitude (pp.)"
+      )
+    )
+  ) %>%
+  group_by(indicator) %>%
+  arrange(.by_group = T) %>%
+  mutate(`Full Cycle` = if_else(
+    Variable == "Duration (Q)", 
+    Upturn + Downturn, 
+    NA_real_)
+  ) %>%
+  select(Indicator = indicator, Variable, everything()) -> stat_dur_amp
+
+options(knitr.kable.NA = '')
+kbl(stat_dur_amp, digits = 2, booktabs = T,
+    caption = "Basic cyclical features of main variables") %>%
+  collapse_rows(columns = 1) %>%
+  kable_styling(full_width = F)
+```
+
+Based on the identified turning points in Section \ref{cycle-extraction}, 
+I calculated the duration and amplitude of the cycles for each series (Table \ref{tab:dur_amp}).
+The duration of an upturn (downturn) is defined as the quarters from a trough (peak) to a peak (trough).
+The amplitude of an upturn (downturn) is defined as the largest positive (negative) deviation from the trend. 
+
+Table \ref{tab:dur_amp} shows 
+(1) Most variables have full cycles of 10-13 quarters, while GDP and Credit/GDP demonstrate considerable longer cycles that lasts 18-19 quarters. 
+^[Spectrum analysis suggests GDP series has a 22-quarter cycle, CPI a 15-quarter cycle, 
+property price a 22-quarter cycle and a 12-quarter cycle, 
+credit a 18-quarter cycle and a 12-quarter cycle.]
+(2) Most variables exhibit longer quarters of downturn than upturn. 
+An upturn takes an average of 5-8 quarters, while a downturn generally takes 6-11 quarters. 
+(3) For GDP and credit, the downturns are more severe than the upturns (more pronounced amplitude). 
+While for houses, price levels, and interest rates, the amplitude of troughs are relatively mild compared to peaks. 
+^[The numbers here demonstrate drastically different characteristics from financial or business cycles concluded from developed economies [@Claessens2012;@Borio2014]. 
+In the later case, financial variables generally have longer cycles than real variables, 
+and upturns are typically more pronounced in magnitude than downturns. 
+The difference is partly due to the different methodology adopted in this paper. 
+The "growth cycle method" is more sensitive to downturns than the "classical method".
+Institutional factors also affect the behavior of macroeconomic variables. 
+For example, strong counter-cyclical fiscal policy is usually adopted in China during downturns.
+These factors make real GDP more stable than financial variables. 
+The results here are consistent with conclusions from Chinese literature [@Yinan2016; @Taihui2018]. ]
+
+```{r, include=FALSE}
+gg_spec <- function(x, log=FALSE) {
+  sp <- spectrum(x, plot=FALSE)
+  tb <- tibble(freq = sp$freq, spec = sp$spec) %>%
+    mutate(period = 1/freq)
+  tb
+}
+# gg_spec(data_raw$R007)
+# ggplot(.Last.value, aes(x=freq, y=spec)) + geom_line()
+```
+
+
+## Correlation and concordance
+
+Figure \ref{fig:corr} shows the correlation between the series. 
+GDP and CPI have a strong positive correlation, and 
+both of them are positively correlated with the interest rate. 
+Credit is negatively correlated with the interest rate, and 
+hence negatively correlated with GDP and CPI. 
+House prices do not exhibit strong correlations with any other series. 
+
+```{r corr, fig.cap="Correlation between series", message=FALSE}
+data_cyl_std %>% GGally::ggpairs(columns = 2:7)
+```
+
+To further shed some light on the concordance of the cycles of different series, 
+I calculated the concordance score between the variables as did by @Drehmann2012.
+Concordance measures the percentage of time for which two series are in the same phase (upturn or downturn).
+Specifically, the concordance scroe is defined as
+
+$$ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})(1-\rho_t^{Y})]$$
+
+where $\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}$,
+$\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$.
+
+
+```{r}
+# impute value 1 or 0 to upturn or downturn phases
+stat_updown <- data_peak_trough %>%
+  group_by(indicator, peak_trough_cycle) %>%
+  # 1 indicate an upturn, 0 indicate a downturn
+  mutate(is_upturn = if_else(up_down > 0, 1, 0)) %>%
+  ungroup() %>%
+  select(date, indicator, is_upturn) %>%
+  pivot_wider(names_from = indicator, values_from = is_upturn) 
+```
+
+```{r cord, warning=FALSE}
+stat_updown %>%
+  select(-date) %>%
+  map(function(each, others) {
+    map_dbl(others, ~ sum(.x*.y + (1-.x)*(1-.y), na.rm = T)/length(.x), each)
+  }, stat_updown %>% select(-date)) %>%
+  as_tibble(rownames = NA) -> stat_concord
+rownames(stat_concord) <- names(stat_concord)
+
+stat_concord %>% 
+  rownames_to_column(var = "Variables") %>%
+  kbl(digits = 2, booktabs = T, caption = "Concordance between variables") %>%
+  kable_styling(full_width = F)
+```
+The concordance scores (Table \ref{tab:cord}) shows that GDP and CPI have 68% of their cycles overlapped. 
+Interest rate cycles overlap 67% of GDP cycles, 64% of credit cycles, and 62% of house price cycles. 
+Credit cycles have relatively low concordance with real variables, 55% with GDP, and 39% with CPI. 
+House prices have almost half of the cycles overlapped with all other variables, 
+though the concordance with interest rate is slightly higher up to 62%.
+
+
+
+# Discussion
+
+The last section in the document will be used as the section title for the bibliography.
+
+# References

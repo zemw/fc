@@ -1,5 +1,10 @@
 .DS_Store
 
+# Rmarkdown temporary files
+*_files
+/paper/*.pdf
+/paper/*.log
+
 # History files
 .Rhistory
 .Rapp.history

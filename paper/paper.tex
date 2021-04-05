@@ -1,0 +1,444 @@
+\documentclass[12pt,halfline,a4paper,]{ouparticle}
+
+% Packages I think are necessary for basic Rmarkdown functionality
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{fancyvrb}
+\usepackage{framed}
+
+% For knitr::kable functionality
+\usepackage{booktabs}
+\usepackage{longtable}
+
+%% To allow better options for figure placement
+%\usepackage{float}
+
+% Packages that are supposedly required by OUP sty file
+\usepackage{amssymb, amsmath, geometry, amsfonts, verbatim, endnotes, setspace}
+
+% For code highlighting I think
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+
+% For making Rmarkdown lists
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% Part for setting citation format package: natbib
+
+% Part for setting citation format package: biblatex
+
+% Part for indenting CSL refs
+% Pandoc citation processing
+% Pandoc header
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Financial Cycles in China}
+
+\author{%
+\name{Z. WANG}\address{Australian National University}\email{\href{mailto:zem.wang@anu.edu.au}{zem.wang@anu.edu.au}}
+}
+
+\abstract{This is the abstract.}
+
+\date{\today}
+
+\keywords{key; dictionary; word}
+
+\maketitle
+
+
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+The Global Financial Crisis has triggered a rethink of the role of
+finance to the real economy. Though the view that financial factors
+generate economic fluctuations has been along for centuries, the
+mainstream neoclassical thinking is that ``money is a veil'' and
+financial institutions are just intermediaries which alters no substance
+in the real economy.
+
+However, the onset of GFC demonstrated the great disruptions that
+financial factors could bring about. It is clear that the relationship
+between the ``Wall Street'' and the ``Main Street'' is not fully
+captured by just interest rates -- as it is commonly assumed in
+neoclassical literature.
+
+After the GFC, growing efforts have been devoted to bridge the gap
+between finance and real economy. On the theoretical side, notably,
+Gertler and Kiyotaki (2011). Empirical literature have focused on
+capturing the regularities of financial cycles and how it intereacts
+with real business cycles (Claessens, 2011).
+
+\hypertarget{data-and-methodology}{%
+\section{Data and methodology}\label{data-and-methodology}}
+
+\hypertarget{choice-of-variables}{%
+\subsection{Choice of variables}\label{choice-of-variables}}
+
+I choose three indicators to characterize the financial cycles: credit,
+house price and credit to GDP ratio. Credit reflects the aggregate
+claims created by the financial system, which is a natural choice to
+represent financial cycles. Credit is also regarded by some as the
+single most powerful indicator for financial crisis (Schularick \&
+Taylor, 2012). In this paper, I use the Total Credit to the
+Non-Financial Sector from the BIS credit statistics.\footnote{BIS total
+  credit comprises financing from all sources, including domestic banks,
+  other domestic financial corporations, non-financial corporations and
+  non-residents. The financial instruments covered comprise currency and
+  deposits, loans and debt securities. Debt securities include bonds and
+  short-term papers; equities, insurance, pension funds are not
+  included. In Chinese literature, the Aggregate Financing to the Real
+  Economy (AFRE) indicator is more widely used. However, the AFRE
+  statistics are only available yearly after 2002, and monthly after
+  2014. The coverage of BIS total credit and AFRE largely overlapped.
+  The correlation between BIS total credit and AFRE after 2014 is
+  0.9944. To preserve consistency in data, BIS total credit is used
+  throughout in this paper.} To measure how much credit is
+``over-expanded'' relative to the size of the economy, credit to GDP
+ratio is calculated and included as a separate indicator.
+
+House price is another important indicator of financial cycles. House
+properties, though being real estate, have many similar characteristics
+as financial assets. As the most commonly accepted collateral for
+credit, house prices capture the endogenous relationship between
+entities' net worth, borrowing constraints, and credit creation. Strong
+evidence suggests household leverage (mainly through mortgage loans)
+influences business cycles through credit supply channels (Mian et al.,
+2017). In this paper, I use the Average Price of Commercial Residential
+Buildings from the National Bureau of Statistics as a measure of house
+prices.\footnote{This only includes a portion of the total residential
+  properties in China, indemnificatory housing and other types of
+  public-built private-owned housing are not included in this
+  statistics. But narrowing down to privately traded residential
+  properties is a better choice to reflect market conditions. In Chinese
+  literature, other indicators, such as average house price of 70 major
+  cities, are more widely used. However, these indicators are only
+  available for recent years. The indicator chosen in this paper traced
+  the house prices back to 1998, the beginning of China's housing
+  reform. }
+
+The data are at quarterly frequency, ranging from 1999 to 2019. The data
+starts from 1999, firstly due to the data availability; secondly,
+considering China took a major reform in the housing market in July 1998
+-- since then residential properties can be freely traded in the market
+-- the house prices before 1999 have little value for the purpose of
+this paper. The time series are seasonally adjusted whenever
+necessary.\footnote{Except for GDP, I do not adjust the data for
+  inflation. For the purpose of studying financial cycles, it is the
+  nominal values that matter. } The original time series of the main
+indicators are depicted in Figure \ref{fig:raw_data}.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=1\linewidth]{paper_files/figure-latex/raw_data-1} 
+
+}
+
+\caption{Time series of main indicators (seasonally-adjusted)}\label{fig:raw_data}
+\end{figure}
+
+\hypertarget{cycle-extraction}{%
+\subsection{Cycle extraction}\label{cycle-extraction}}
+
+There are many methodologies to identify cycles in macroeconomic
+variables. The classical method tracks absolute increase or decrease of
+economic activities. For example, a recession is identified by two
+consecutive quarters of declines of GDP. However, this ``classical''
+business cycle definition is not suitable for fast-growing economies, in
+which macroeconomic variables are constantly in upward movement. For
+fast-growing economies, the ``growth cycle methodology'' is more
+appropriate, which identifies cycles as fluctuations around a trend. In
+this paper, I apply the Hodrick-Prescott (HP) filter to extract the
+cyclical components from the time series.\footnote{The lambda value is
+  set to 1600 for quarterly data as suggested by Hodrick \& Prescott
+  (1997). There are other methods used for cycle extraction in the
+  literature. For example, Ma et al. (2016) applied HP filter to YoY
+  changes of variables. This method is problematic, because HP filter is
+  designed to obtain trends by smoothing out short-term fluctuations.
+  Performing year-to-year difference by default removes the trend.
+  Another popular approach is to apply Bank-Pass filters such as
+  Christiano-Fitzgerald (CF) filter. This is the approach adopted by
+  Drehmann et al. (2012) and Zhu \& Huang (2018). However, CF filter
+  pre-imposes the length of the cycle to be within a certain band.
+  According to Drehmann et al. (2012), the short-term cycles are between
+  1 and 8 years, and mid-term cycles are between 8 to 30 years. Since
+  China's data is available for merely 20 years, applying the CF filter
+  is unnecessary and bears the risk of losing too much information.}
+Log-transformation is applied to variables that grow proportionately to
+their sizes such as GDP, credit and house prices. The magnitude of the
+cycles are standardized by their starndard deviation.
+
+Harding \& Pagan (2002)'s (medium-term) turning-point algorithm is then
+applied to identify peaks and troughs of the cycles. Specifically, the
+algorithm involves two steps: (1) identifying local maxima and minima
+over a window of 9 quarters; (2) imposing censoring rules that the
+minimum length of each phase of upturn or downturn is 2 quarters;
+Further, I impose a third restriction: (3) peaks and troughs must appear
+alternately, that is there must be one and only one peaks (troughs)
+between two troughs (peaks). Figure \ref{fig:cyl_tp} plots the HP
+filtered cycles of the variables together with the identified turning
+points.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=1\linewidth]{paper_files/figure-latex/cyl_tp-1} 
+
+}
+
+\caption{Cyclical components and turning points}\label{fig:cyl_tp}
+\end{figure}
+
+\hypertarget{business-and-financial-cycles-basic-features}{%
+\section{Business and financial cycles: basic
+features}\label{business-and-financial-cycles-basic-features}}
+
+\hypertarget{duration-and-amplitude}{%
+\subsection{Duration and amplitude}\label{duration-and-amplitude}}
+
+\begin{table}
+
+\caption{\label{tab:dur_amp}Basic cyclical features of main variables}
+\centering
+\begin{tabular}[t]{llrrr}
+\toprule
+Indicator & Variable & Downturn & Upturn & Full Cycle\\
+\midrule
+ & Duration (Q) & 7.50 & 4.86 & 12.36\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash CPI} & Amplitude (pp.) & -1.04 & 1.15 & \\
+\cmidrule{1-5}
+ & Duration (Q) & 7.29 & 5.17 & 12.45\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash Credit} & Amplitude (\%) & -1.06 & 0.68 & \\
+\cmidrule{1-5}
+ & Duration (Q) & 11.75 & 7.40 & 19.15\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash Credit/GDP} & Amplitude (pp.) & -1.54 & 1.60 & \\
+\cmidrule{1-5}
+ & Duration (Q) & 9.80 & 8.25 & 18.05\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash GDP} & Amplitude (\%) & -1.55 & 1.30 & \\
+\cmidrule{1-5}
+ & Duration (Q) & 5.29 & 5.12 & 10.41\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash House} & Amplitude (\%) & -1.39 & 1.55 & \\
+\cmidrule{1-5}
+ & Duration (Q) & 6.50 & 6.50 & 13.00\\
+\cmidrule{2-5}
+\multirow{-2}{*}{\raggedright\arraybackslash R007} & Amplitude (pp.) & -1.23 & 1.94 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Based on the identified turning points in Section
+\ref{cycle-extraction}, I calculated the duration and amplitude of the
+cycles for each series (Table \ref{tab:dur_amp}). The duration of an
+upturn (downturn) is defined as the quarters from a trough (peak) to a
+peak (trough). The amplitude of an upturn (downturn) is defined as the
+largest positive (negative) deviation from the trend.
+
+Table \ref{tab:dur_amp} shows (1) Most variables have full cycles of
+10-13 quarters, while GDP and Credit/GDP demonstrate considerable longer
+cycles that lasts 18-19 quarters.\footnote{Spectrum analysis suggests
+  GDP series has a 22-quarter cycle, CPI a 15-quarter cycle, property
+  price a 22-quarter cycle and a 12-quarter cycle, credit a 18-quarter
+  cycle and a 12-quarter cycle.} (2) Most variables exhibit longer
+quarters of downturn than upturn. An upturn takes an average of 5-8
+quarters, while a downturn generally takes 6-11 quarters. (3) For GDP
+and credit, the downturns are more severe than the upturns (more
+pronounced amplitude). While for houses, price levels, and interest
+rates, the amplitude of troughs are relatively mild compared to
+peaks.\footnote{The numbers here demonstrate drastically different
+  characteristics from financial or business cycles concluded from
+  developed economies (Borio, 2014; Claessens et al., 2012). In the
+  later case, financial variables generally have longer cycles than real
+  variables, and upturns are typically more pronounced in magnitude than
+  downturns. The difference is partly due to the different methodology
+  adopted in this paper. The ``growth cycle method'' is more sensitive
+  to downturns than the ``classical method''. Institutional factors also
+  affect the behavior of macroeconomic variables. For example, strong
+  counter-cyclical fiscal policy is usually adopted in China during
+  downturns. These factors make real GDP more stable than financial
+  variables. The results here are consistent with conclusions from
+  Chinese literature (Yi \& Zhang, 2016; Zhu \& Huang, 2018). }
+
+\hypertarget{correlation-and-concordance}{%
+\subsection{Correlation and
+concordance}\label{correlation-and-concordance}}
+
+Figure \ref{fig:corr} shows the correlation between the series. GDP and
+CPI have a strong positive correlation, and both of them are positively
+correlated with the interest rate. Credit is negatively correlated with
+the interest rate, and hence negatively correlated with GDP and CPI.
+House prices do not exhibit strong correlations with any other series.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=1\linewidth]{paper_files/figure-latex/corr-1} 
+
+}
+
+\caption{Correlation between series}\label{fig:corr}
+\end{figure}
+
+To further shed some light on the concordance of the cycles of different
+series, I calculated the concordance score between the variables as did
+by Drehmann et al. (2012). Concordance measures the percentage of time
+for which two series are in the same phase (upturn or downturn).
+Specifically, the concordance scroe is defined as
+
+\[ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})(1-\rho_t^{Y})]\]
+
+where
+\(\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}\),
+\(\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}\).
+
+\begin{table}
+
+\caption{\label{tab:cord}Concordance between variables}
+\centering
+\begin{tabular}[t]{lrrrrrr}
+\toprule
+Variables & CPI & Credit & Credit/GDP & GDP & House & R007\\
+\midrule
+CPI & 1.00 & 0.39 & 0.37 & 0.68 & 0.58 & 0.54\\
+Credit & 0.39 & 1.00 & 0.62 & 0.55 & 0.48 & 0.64\\
+Credit/GDP & 0.37 & 0.62 & 1.00 & 0.24 & 0.38 & 0.33\\
+GDP & 0.68 & 0.55 & 0.24 & 1.00 & 0.57 & 0.67\\
+House & 0.58 & 0.48 & 0.38 & 0.57 & 1.00 & 0.62\\
+\addlinespace
+R007 & 0.54 & 0.64 & 0.33 & 0.67 & 0.62 & 1.00\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The concordance scores (Table \ref{tab:cord}) shows that GDP and CPI
+have 68\% of their cycles overlapped. Interest rate cycles overlap 67\%
+of GDP cycles, 64\% of credit cycles, and 62\% of house price cycles.
+Credit cycles have relatively low concordance with real variables, 55\%
+with GDP, and 39\% with CPI. House prices have almost half of the cycles
+overlapped with all other variables, though the concordance with
+interest rate is slightly higher up to 62\%.
+
+\hypertarget{discussion}{%
+\section{Discussion}\label{discussion}}
+
+The last section in the document will be used as the section title for
+the bibliography.
+
+\hypertarget{references}{%
+\section*{References}\label{references}}
+\addcontentsline{toc}{section}{References}
+
+\hypertarget{refs}{}
+\leavevmode\hypertarget{ref-Borio2014}{}%
+Borio, C. (2014). The financial cycle and macroeconomics: What have we
+learnt? \emph{Journal of Banking \& Finance}, \emph{45}, 182--198.
+\url{https://doi.org/10.1016/j.jbankfin.2013.07.031}
+
+\leavevmode\hypertarget{ref-Claessens2012}{}%
+Claessens, S., Kose, M. A., \& Terrones, M. E. (2012). How do business
+and financial cycles interact? \emph{Journal of International
+Economics}, \emph{87}(1), 178--190.
+\url{https://doi.org/10.1016/j.jbankfin.2013.07.031}
+
+\leavevmode\hypertarget{ref-Drehmann2012}{}%
+Drehmann, M., Borio, C. E., \& Tsatsaronis, K. (2012). Characterising
+the financial cycle: Don't lose sight of the medium term! \emph{BIS
+Working Paper}. \url{https://ssrn.com/abstract=2084835}
+
+\leavevmode\hypertarget{ref-Harding2002}{}%
+Harding, D., \& Pagan, A. (2002). Dissecting the cycle: A methodological
+investigation. \emph{Journal of Monetary Economics}, \emph{49}(2),
+365--381. \url{https://doi.org/10.1016/S0304-3932(01)00108-8}
+
+\leavevmode\hypertarget{ref-Hodrick1997}{}%
+Hodrick, R. J., \& Prescott, E. C. (1997). Postwar us business cycles:
+An empirical investigation. \emph{Journal of Money, Credit, and
+Banking}, 1--16. \url{https://doi.org/10.2307/2953682}
+
+\leavevmode\hypertarget{ref-Mayong2016}{}%
+Ma, Y., Feng, X., \& Tian, T. (2016). Financial cycle and economic
+cycle: Evidence from china. \emph{Studies of International Finance
+(Chinese)}, \emph{10}, 3--14.
+\url{https://doi.org/10.16475/j.cnki.1006-1029.2016.10.001}
+
+\leavevmode\hypertarget{ref-Mian2017}{}%
+Mian, A., Sufi, A., \& Verner, E. (2017). Household debt and business
+cycles worldwide. \emph{The Quarterly Journal of Economics},
+\emph{132}(4), 1755--1817. \url{https://doi.org/10.1093/qje/qjx017}
+
+\leavevmode\hypertarget{ref-Schularick2012}{}%
+Schularick, M., \& Taylor, A. M. (2012). Credit booms gone bust:
+Monetary policy, leverage cycles, and financial crises, 1870-2008.
+\emph{American Economic Review}, \emph{102}(2), 1029--1061.
+\url{https://doi.org/10.1257/aer.102.2.1029}
+
+\leavevmode\hypertarget{ref-Yinan2016}{}%
+Yi, N., \& Zhang, B. (2016). Measuring china's financial cycle.
+\emph{Studies of International Finance (Chinese)}, \emph{06}, 13--23.
+\url{https://doi.org/10.16475/j.cnki.1006-1029.2016.06.002}
+
+\leavevmode\hypertarget{ref-Taihui2018}{}%
+Zhu, T., \& Huang, H. (2018). China's financial cycle: Indicators,
+methods and empirical research. \emph{Journal of Financial Research
+(Chinese)}, \emph{462}, 55--71.
+\url{http://www.jryj.org.cn/CN/abstract/article_550.shtml}
+
+
+
+
+
+
+\end{document}
