@@ -53,8 +53,24 @@ cf_filter <- function(x, .pl, .pu, .root=T, .drift=T) {
   unclass(result) 
 }
 
+zoo_to_ts <- function(x) {
+  stopifnot(is.zoo(x))
+  ind <- zoo::index(x)
+  freq <- tk_get_frequency(ind, message = F) 
+  
+  start <- case_when(
+    freq == 4L ~ c(year(ind[1]), quarter(ind[1])), 
+    freq == 12L ~ c(year(ind[1]), month(ind[1]))
+  )
+  
+  if (all(is.na(start)))
+    stop(paste("Unsupported frequency:", freq))
+  
+  # convert to ts object. seas requires ts object
+  ts(x, start = start, frequency = freq)
+}
 
-.tbl_to_xts <- function(object, index_var, data_var) {
+tbl_to_zoo <- function(object, index_var, data_var) {
   
   stopifnot(!missing(object) && is_tibble(object))
   stopifnot(!missing(index_var), !missing(data_var))
@@ -69,6 +85,20 @@ cf_filter <- function(x, .pl, .pu, .root=T, .drift=T) {
   names(x) <- quo_name(data_var)
   
   x
+}
+
+tbl_to_ts <- function(object, index_var, data_var) {
+  stopifnot(!missing(object) && is_tibble(object))
+  stopifnot(!missing(index_var), !missing(data_var))
+  
+  index_var <- enquo(index_var)
+  data_var <- enquo(data_var)
+  
+  index <- object %>% pull(!!index_var)
+  data <- object %>% pull(!!data_var)
+  
+  x <- xts(x = data, order.by = index)
+  zoo_to_ts(x)
 }
 
 # series a time series into a string of Matlab code
@@ -122,3 +152,5 @@ cf_filter <- function(x, .pl, .pu, .root=T, .drift=T) {
   
   str_c(str_data, str_name, str_info)
 }
+
+
