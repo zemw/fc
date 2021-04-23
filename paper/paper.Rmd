@@ -31,6 +31,19 @@ knitr::opts_chunk$set(out.width = '100%', dpi=300) # Figure resolution and size
 knitr::opts_chunk$set(fig.env="figure") # Latex figure environment
 ```
 
+```{r libs, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+library(readxl)
+library(tsibble)
+library(slider)
+library(xts)
+library(timetk)
+library(rlang)
+library(kableExtra)
+```
+
 # Introduction
 
 The Global Financial Crisis has prompted a rethink of the role of finance to the real economy. 
@@ -50,19 +63,17 @@ and how it intereacts with real business cycles (Claessens, 2011).
 
 # Data and methodology
 
-```{r, include=FALSE}
-library(kableExtra)
-library(tsibble)
-library(vars)
+```{r, message=FALSE}
+data_raw <- 
+  read_excel("../data/data_raw.xlsx", sheet = 1) %>%
+  mutate(date = as_date(date))
+
+# HP filtered cyclical components
+data_cyl <- 
+  read_csv("../data/data_vars.csv") %>%
+  mutate(date = yq(date) + months(2)) 
 ```
 
-```{r, include=FALSE}
-source("../script/ceic.R")
-source("../script/filter.R")
-
-cki_m <- ceic_load("../data/CKI_M.m") # monthly 
-cki_q <- ceic_load("../data/CKI_Q.m") # quarterly
-```
 
 ## Choice of variables
 
@@ -101,82 +112,28 @@ the house prices before 1999 have little value for the purpose of this paper.
 The time series are seasonally adjusted whenever necessary. 
 ^[Except for GDP, I do not adjust the data for inflation. 
 For the purpose of studying financial cycles, it is the nominal values that matter. ]
-The original time series of the main indicators are depicted in Figure \ref{fig:raw_data}.
-
-```{r}
-monthly_series <- list(
-  CPI = "5716201",    # CPI MoM
-  R007 = "7061001",   # Interbank 7-day repo rate
-  House = "4006901",   # Commodity Bldg Selling Price: YTD Average
-  AFRE = "365867277"  # Aggregate Financing to the Real Economy
-)
-
-cki_m$fetch(
-  seriesId = as.character(monthly_series), 
-  rename_cols = names(monthly_series)
-  ) %>%
-  # convert MoM difference to index
-  mutate(CPI = CPI - 100) %>%
-  mutate(CPI = cumsum(CPI) + 100) %>%
-  # convert monthly data to quarterly
-  condense_period(
-    .date_var = date, 
-    .period = "quarter", 
-    .side = "end"
-  ) -> data_m
-
-quarterly_series <- list(
-  GDP = "369703417", 
-  Credit = "371938917"  # Credit to Non-financial Sector
-)
-
-cki_q$fetch(
-  seriesId = as.character(quarterly_series), 
-  rename_cols = names(quarterly_series)
-  ) %>%
-  mutate(`Credit/GDP` = Credit/GDP) -> data_q
-
-# combine all data: un-adjusted time series 
-data_raw <- 
-  full_join(data_m, data_q, by = "date") %>%
-  select(date, GDP, CPI, House, Credit, `Credit/GDP`, R007) %>% 
-  filter_by_time(date, .start_date = "1999-03", .end_date = "2019-12") 
-```
 
 
-```{r raw_data, fig.cap = "Time series of main indicators (YoY)" }
+```{r raw_data, include=F}
 # fig.heighht = 3.5
-# plot seasonally-adjusted time series
-# data_raw %>%
-#   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
-#   group_by(indicator) %>%
-#   mutate(value_sa = x11_adjust(value, date) %$% final) %>%
-#   ggplot(aes(x = date, y = value_sa)) +
-#   facet_wrap(~indicator, scales = "free_y") + 
-#   geom_line() + labs(x = NULL, y = NULL)
-
-# YoY difference
 data_raw %>%
-  mutate_at(2:6, ~diff_vec(., lag = 4, log = T)) %>%
-  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
-  group_by(indicator) %>%
+  filter(year(date) > 1998) %>%
+  pivot_longer(2:7) %>%
+  group_by(name) %>%
   ggplot(aes(x = date, y = value)) +
-  facet_wrap(~indicator, scales = "free_y") +
-  geom_line() + labs(x = NULL, y = NULL)
-  
+  facet_wrap(~name, scales = "free_y") +
+  labs(x = NULL, y = NULL) +
+  geom_line() 
+
+data_cyl %>%
+  pivot_longer(2:7) %>%
+  group_by(name) %>%
+  ggplot(aes(x = date, y = value)) +
+  facet_wrap(~name, scales = "free_y") +
+  labs(x = NULL, y = NULL) +
+  geom_line() 
 ```
 
-```{r, include=FALSE}
-# test the correlation between BIS credit and AFRE
-data_tmp <- full_join(data_m, data_q, by = "date") %>%
-  select(date, Credit, AFRE) %>%
-  filter_by_time(
-    .date_var = date, 
-    .start_date = "2014-03", 
-    .end_date = "2019-12"
-  ) 
-cor(data_tmp$Credit, data_tmp$AFRE) # 0.994411
-```
 
 ## Cycle extraction
 
@@ -206,20 +163,9 @@ The magnitude of the cycles are standardized by their starndard deviation.
 
 
 ```{r}
-
-# extract cyclical components from the time series
-data_cyl <- data_raw %>%
-  # log before or after seasonal adjustment are almost identical
-  mutate_at(vars(GDP, Credit, House), ~log(.)) %>%
-  mutate_at(vars(-date), ~ x11_adjust(., index = date) %$% final) %>%
-  mutate_at(vars(-date), ~ hp_filter(., .lambda = 1600) %$% cycle)
-
 # standardize the cycles by standard deviation (mean = 0)
 data_cyl_std <- data_cyl %>%
   mutate_at(vars(-date), ~ ./sd(.))
-
-# transformed data
-# data_s %>% skimr::skim()
 ```
 
 @Harding2002's (medium-term) turning-point algorithm is then applied to identify peaks and troughs of the cycles. Specifically, the algorithm involves two steps:
@@ -244,7 +190,7 @@ data_peak_trough <- data_cyl_std %>%
       if (which.max(x) == mid) x[mid]
       else NA
     },
-    .before = 4, .after = 4, .complete = F)
+    .before = 4, .after = 4, .complete = T)
   ) %>%
   mutate(trough = slide_dbl(
     value,  
@@ -253,7 +199,7 @@ data_peak_trough <- data_cyl_std %>%
       if (which.min(x) == mid) x[mid]
       else NA
     },
-    .before = 4, .after = 4, .complete = F)
+    .before = 4, .after = 4, .complete = T)
   ) %>%
   arrange(.by_group = T)
 ```
@@ -345,7 +291,7 @@ data_peak_trough %<>%
   mutate(peak_trough_cycle = (peak_cycle + trough_cycle) * up_down)
 ```
 
-```{r cyl_tp, fig.cap="Cyclical components and turning points"}
+```{r cyl_tp, fig.cap="Business cycles and turning points"}
 # plotting the cycles together with the turning points
 data_peak_trough %>%
   ggplot(aes(x=date)) +
@@ -497,7 +443,7 @@ Specifically, the concordance scroe is defined as
 $$ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})(1-\rho_t^{Y})]$$
 
 where $\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}$,
-$\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$.
+$\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$. $\\$
 
 
 ```{r}
@@ -525,6 +471,8 @@ stat_concord %>%
   kbl(digits = 2, booktabs = T, caption = "Concordance between variables") %>%
   kable_styling(full_width = F)
 ```
+
+
 The concordance scores (Table \ref{tab:cord}) shows that GDP and CPI have 68% of their cycles overlapped. 
 Interest rate cycles overlap 67% of GDP cycles, 64% of credit cycles, and 62% of house price cycles. 
 Credit cycles have relatively low concordance with real variables, 55% with GDP, and 39% with CPI. 

@@ -176,17 +176,7 @@ considering China took a major reform in the housing market in July 1998
 this paper. The time series are seasonally adjusted whenever
 necessary.\footnote{Except for GDP, I do not adjust the data for
   inflation. For the purpose of studying financial cycles, it is the
-  nominal values that matter. } The original time series of the main
-indicators are depicted in Figure \ref{fig:raw_data}.
-
-\begin{figure}[h]
-
-{\centering \includegraphics[width=1\linewidth]{paper_files/figure-latex/raw_data-1} 
-
-}
-
-\caption{Time series of main indicators (YoY)}\label{fig:raw_data}
-\end{figure}
+  nominal values that matter. }
 
 \hypertarget{cycle-extraction}{%
 \subsection{Cycle extraction}\label{cycle-extraction}}
@@ -236,7 +226,7 @@ points.
 
 }
 
-\caption{Cyclical components and turning points}\label{fig:cyl_tp}
+\caption{Business cycles and turning points}\label{fig:cyl_tp}
 \end{figure}
 
 \hypertarget{business-and-financial-cycles-basic-features}{%
@@ -254,29 +244,29 @@ features}\label{business-and-financial-cycles-basic-features}}
 \toprule
 Indicator & Variable & Downturn & Upturn & Full Cycle\\
 \midrule
- & Duration (Q) & 7.50 & 4.86 & 12.36\\
+ & Duration (Q) & 8.83 & 4.17 & 13.00\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash CPI} & Amplitude (pp.) & -1.04 & 1.15 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash CPI} & Amplitude (pp.) & -1.05 & 1.19 & \\
 \cmidrule{1-5}
- & Duration (Q) & 7.29 & 5.17 & 12.45\\
+ & Duration (Q) & 6.50 & 6.83 & 13.33\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash Credit} & Amplitude (\%) & -1.06 & 0.68 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash Credit} & Amplitude (\%) & -1.24 & 0.87 & \\
 \cmidrule{1-5}
- & Duration (Q) & 11.75 & 7.40 & 19.15\\
+ & Duration (Q) & 9.20 & 8.50 & 17.70\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash Credit/GDP} & Amplitude (pp.) & -1.54 & 1.60 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash Credit/GDP} & Amplitude (pp.) & -1.49 & 1.25 & \\
 \cmidrule{1-5}
- & Duration (Q) & 9.80 & 8.25 & 18.05\\
+ & Duration (Q) & 9.50 & 9.25 & 18.75\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash GDP} & Amplitude (\%) & -1.55 & 1.30 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash GDP} & Amplitude (\%) & -1.44 & 1.48 & \\
 \cmidrule{1-5}
- & Duration (Q) & 5.29 & 5.12 & 10.41\\
+ & Duration (Q) & 5.71 & 4.62 & 10.34\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash House} & Amplitude (\%) & -1.39 & 1.55 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash House} & Amplitude (\%) & -1.10 & 1.58 & \\
 \cmidrule{1-5}
- & Duration (Q) & 6.50 & 6.50 & 13.00\\
+ & Duration (Q) & 6.60 & 8.00 & 14.60\\
 \cmidrule{2-5}
-\multirow{-2}{*}{\raggedright\arraybackslash R007} & Amplitude (pp.) & -1.23 & 1.94 & \\
+\multirow{-2}{*}{\raggedright\arraybackslash R007} & Amplitude (pp.) & -1.38 & 2.06 & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -343,6 +333,7 @@ Specifically, the concordance scroe is defined as
 where
 \(\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}\),
 \(\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}\).
+\(\\\)
 
 \begin{table}
 
@@ -352,13 +343,13 @@ where
 \toprule
 Variables & CPI & Credit & Credit/GDP & GDP & House & R007\\
 \midrule
-CPI & 1.00 & 0.39 & 0.37 & 0.68 & 0.58 & 0.54\\
-Credit & 0.39 & 1.00 & 0.62 & 0.55 & 0.48 & 0.64\\
-Credit/GDP & 0.37 & 0.62 & 1.00 & 0.24 & 0.38 & 0.33\\
-GDP & 0.68 & 0.55 & 0.24 & 1.00 & 0.57 & 0.67\\
-House & 0.58 & 0.48 & 0.38 & 0.57 & 1.00 & 0.62\\
+CPI & 1.00 & 0.40 & 0.44 & 0.61 & 0.60 & 0.50\\
+Credit & 0.40 & 1.00 & 0.73 & 0.56 & 0.55 & 0.55\\
+Credit/GDP & 0.44 & 0.73 & 1.00 & 0.29 & 0.42 & 0.51\\
+GDP & 0.61 & 0.56 & 0.29 & 1.00 & 0.56 & 0.58\\
+House & 0.60 & 0.55 & 0.42 & 0.56 & 1.00 & 0.40\\
 \addlinespace
-R007 & 0.54 & 0.64 & 0.33 & 0.67 & 0.62 & 1.00\\
+R007 & 0.50 & 0.55 & 0.51 & 0.58 & 0.40 & 1.00\\
 \bottomrule
 \end{tabular}
 \end{table}
