@@ -1,9 +1,9 @@
 .DS_Store
 
 # Rmarkdown temporary files
-*_files
-/paper/*.pdf
-/paper/*.log
+*_book
+*_bookdown_files
+.log
 
 # History files
 .Rhistory

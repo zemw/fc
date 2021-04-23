@@ -1,28 +1,3 @@
----
-title: Financial Cycles in China
-#date: "`r Sys.Date()`"
-authors:
-  - name: Z. WANG
-    email: zem.wang@anu.edu.au
-    address: Australian National University
-abstract: |
-  This is the abstract.
-keywords:
-  - key
-  - dictionary
-  - word
-#fontsize: 12pt
-#spacing: halfline # could also be oneline
-#classoptions:
-#  - endnotes
-bibliography: mybibfile.bib
-csl: apa_7th_edition.csl
-output: rticles::oup_article
-#header-includes:
-#  - \usepackage[nomarkers,tablesfirst]{endfloat} # For figures and tables at end
-#  - \usepackage{lineno} # For line numbering
-#  - \linenumbers # For line numbering
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, error = F) 
@@ -65,12 +40,12 @@ and how it intereacts with real business cycles (Claessens, 2011).
 
 ```{r, message=FALSE}
 data_raw <- 
-  read_excel("../data/data_raw.xlsx", sheet = 1) %>%
+  read_excel("data/data_raw.xlsx", sheet = 1) %>%
   mutate(date = as_date(date))
 
 # HP filtered cyclical components
 data_cyl <- 
-  read_csv("../data/data_vars.csv") %>%
+  read_csv("data/data_vars.csv") %>%
   mutate(date = yq(date) + months(2)) 
 ```
 
@@ -173,7 +148,7 @@ data_cyl_std <- data_cyl %>%
 (2) imposing censoring rules that the minimum length of each phase of upturn or downturn is 2 quarters;
 Further, I impose a third restriction: 
 (3) peaks and troughs must appear alternately, that is there must be one and only one peaks (troughs) between two troughs (peaks).
-Figure \ref{fig:cyl_tp} plots the HP filtered cycles of the variables together with the identified turning points.
+Figure \ref{fig:cycle-tp} plots the HP filtered cycles of the variables together with the identified turning points.
 
 ```{r}
 # Identify turning point using Harding and Pagan algorithm
@@ -291,7 +266,7 @@ data_peak_trough %<>%
   mutate(peak_trough_cycle = (peak_cycle + trough_cycle) * up_down)
 ```
 
-```{r cyl_tp, fig.cap="Business cycles and turning points"}
+```{r cycle-tp, fig.cap="Business cycles and turning points"}
 # plotting the cycles together with the turning points
 data_peak_trough %>%
   ggplot(aes(x=date)) +
@@ -352,7 +327,7 @@ stat_amplitude <- data_cyl %>%
   summarise(amplitude = mean(amplitude)) 
 ```
 
-```{r dur_amp}
+```{r dur-amp}
 # reshape the table for printing
 bind_rows(
   # duration table
@@ -387,11 +362,11 @@ kbl(stat_dur_amp, digits = 2, booktabs = T,
 ```
 
 Based on the identified turning points in Section \ref{cycle-extraction}, 
-I calculated the duration and amplitude of the cycles for each series (Table \ref{tab:dur_amp}).
+I calculated the duration and amplitude of the cycles for each series (Table \ref{tab:dur-amp}).
 The duration of an upturn (downturn) is defined as the quarters from a trough (peak) to a peak (trough).
 The amplitude of an upturn (downturn) is defined as the largest positive (negative) deviation from the trend. 
 
-Table \ref{tab:dur_amp} shows 
+Table \ref{tab:dur-amp} shows 
 (1) Most variables have full cycles of 10-13 quarters, while GDP and Credit/GDP demonstrate considerable longer cycles that lasts 18-19 quarters. 
 ^[Spectrum analysis suggests GDP series has a 22-quarter cycle, CPI a 15-quarter cycle, 
 property price a 22-quarter cycle and a 12-quarter cycle, 
@@ -443,7 +418,7 @@ Specifically, the concordance scroe is defined as
 $$ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})(1-\rho_t^{Y})]$$
 
 where $\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}$,
-$\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$. $\\$
+$\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$.
 
 
 ```{r}
@@ -524,7 +499,7 @@ Annex \ref{annex-ordering} tests the sensitivity of the impulse responses to dif
 
 The impulse responses of all variables are provided in Annex \ref{annex-impulse}. 
 I focus here on response of real variables to proxies of financial cycles. 
-Figure \ref{fig:imp_gdp} shows the (accumulated) impulse response of GDP to innovations in 
+Figure \ref{fig:imp-gdp} shows the (accumulated) impulse response of GDP to innovations in 
 credit, credit to GDP ratio, and housing price. 
 It shows that an unexpected increase in all three variables leads to increase of real output, 
 with housing price the most prominent. 
@@ -532,41 +507,41 @@ The up trend peaks after roughly 10 quarters, then the trend starts to reverse.
 This suggests a financial expansion presages an immediate bump up in real output, 
 and then a subsequent decline.
 
-```{r imp_gdp, fig.cap="Impulse response of GDP to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("../graph/imp_gdp.pdf", "../graph/imp_gdp_acc.pdf"))
+```{r imp-gdp, fig.cap="Impulse response of GDP to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("graph/imp_gdp.pdf", "graph/imp_gdp_acc.pdf"))
 ```
 
-Figure \ref{fig:imp_cpi} shows the response of price level, measured by CPI, to an unexpected upward movement of financial cycle. 
+Figure \ref{fig:imp-cpi} shows the response of price level, measured by CPI, to an unexpected upward movement of financial cycle. 
 Price level responds positively to all three innovations, but price is much more sensitive to credit shocks than output. 
 The up-moving trend of the price level peaks in 9 quarters after a positive credit shock.
 The rising house price has more enduring impact on price level -- 
 the upward movement lasts for 12 quarters before its reversal. 
 
-```{r imp_cpi, fig.cap="Impulse response of CPI to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("../graph/imp_cpi.pdf", "../graph/imp_cpi_acc.pdf"))
+```{r imp-cpi, fig.cap="Impulse response of CPI to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("graph/imp_cpi.pdf", "graph/imp_cpi_acc.pdf"))
 ```
 
 Why the business cycle reverses its trend in two and a half years after a financial expansion? 
 The response of interest rate to financial cycle might shed some light. 
-As shown in Figure \ref{fig:imp_ir}, upward movement of credit or housing price elicits rise in interest rate. The response of interest rate is especially aggressive to rising housing price. 
+As shown in Figure \ref{fig:imp-ir}, upward movement of credit or housing price elicits rise in interest rate. The response of interest rate is especially aggressive to rising housing price. 
 The rising interest rate tightens financial conditions and curbs real economic activities. 
 This possibly explains the reversal of the business cycle after a short-run expansion. 
 
-```{r imp_ir, fig.cap="Impulse response of interest rate to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("../graph/imp_ir.pdf", "../graph/imp_ir_acc.pdf"))
+```{r imp-ir, fig.cap="Impulse response of interest rate to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("graph/imp_ir.pdf", "graph/imp_ir_acc.pdf"))
 ```
 
 
 Based on the orthogonalised shocks, one can calculate the contributions of each shocks to the development of economic process. 
 This may help understand the role of financial factors in shaping business cycles.
-Figure \ref{fig:hd_gdp} decomposes the historical cycles of GDP and CPI into different shocks. 
+Figure \ref{fig:hd-gdp} decomposes the historical cycles of GDP and CPI into different shocks. 
 A full list of historical decomposition can be found in Annex \ref{annex-hd-full}.
 
-```{r hd_gdp, fig.cap="Historical decomposition", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("../graph/hd_gdp.pdf", "../graph/hd_cpi.pdf"))
+```{r hd-gdp, fig.cap="Historical decomposition", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("graph/hd_gdp.pdf", "graph/hd_cpi.pdf"))
 ```
 
-As shown in Figure \ref{fig:hd_gdp}, real GDP cycles are mostly contributed by shocks to itself and 
+As shown in Figure \ref{fig:hd-gdp}, real GDP cycles are mostly contributed by shocks to itself and 
 shocks to CPI. Credit shocks played an important role during before and during the GFC. 
 The importance of credit gradually moderated after the GFC. 
 An exception is the year of 2012, in which credit shocks again played a prominent role. 
@@ -588,40 +563,9 @@ The importance of house price attenuated since 2016, as the authority adopted th
 The last section in the document will be used as the section title for the bibliography.
 
 
-# Reference
+\cleardoublepage
 
-<div id="refs"></div> 
+# References {-}
 
+<div id="refs"></div>
 
-# Appendix 
-
-## Unit root test for the variables {-#annex-unit-root}
-
-```{r, out.width="50%"}
-knitr::include_graphics("../graph/ar_root.pdf")
-```
-
-## Residual diagnosis of VAR model {-#annex-residuals}
-
-```{r}
-knitr::include_graphics("../graph/var_resid.pdf")
-```
-
-## Impulse responses of all variables {-#annex-impulse}
-
-```{r}
-knitr::include_graphics("../graph/imp_full.pdf")
-knitr::include_graphics("../graph/imp_full_acc.pdf")
-```
-
-## Historical decomposition of all variables {-#annex-hd-full}
-
-```{r}
-knitr::include_graphics("../graph/hd_full.pdf")
-```
-
-## Robustness to different ordering of variables {-#annex-ordering}
-
-```{r}
-knitr::include_graphics("../graph/imp_ordering.png")
-```

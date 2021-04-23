@@ -1,0 +1,23 @@
+---
+title: Financial Cycles in China
+date: "`r Sys.Date()`"
+authors:
+  - name: Z. WANG
+    email: zem.wang@anu.edu.au
+    address: Australian National University
+abstract: |
+  This is the abstract.
+keywords:
+  - economic
+  - finance
+  - cycles
+#fontsize: 12pt
+#spacing: halfline # could also be oneline
+#classoptions:
+#  - endnotes
+bibliography: refs.bib
+csl: apa_7ed.csl
+# biblio-style: apalike
+link-citations: yes
+site: bookdown::bookdown_site
+---
