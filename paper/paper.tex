@@ -101,7 +101,7 @@
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-The Global Financial Crisis has triggered a rethink of the role of
+The Global Financial Crisis has prompted a rethink of the role of
 finance to the real economy. Though the view that financial factors
 generate economic fluctuations has been along for centuries, the
 mainstream neoclassical thinking is that ``money is a veil'' and
@@ -185,7 +185,7 @@ indicators are depicted in Figure \ref{fig:raw_data}.
 
 }
 
-\caption{Time series of main indicators (seasonally-adjusted)}\label{fig:raw_data}
+\caption{Time series of main indicators (YoY)}\label{fig:raw_data}
 \end{figure}
 
 \hypertarget{cycle-extraction}{%
@@ -371,15 +371,149 @@ with GDP, and 39\% with CPI. House prices have almost half of the cycles
 overlapped with all other variables, though the concordance with
 interest rate is slightly higher up to 62\%.
 
+\hypertarget{dynamic-relations}{%
+\section{Dynamic relations}\label{dynamic-relations}}
+
+This section employs a VAR model to elicit the inter-relationship
+between the variables of interest. The reduced-form of the model is as
+following
+
+\begin{equation}
+y_t = c + \sum_{j=1}^{p} \Phi_j y_{t-j} + u_t 
+\label{eq:var-model}
+\end{equation}
+
+where
+
+\begin{equation}
+y_t = [ 
+  \text{GDP}_t, 
+  \text{CPI}_t, 
+  \text{IR}_t, 
+  \text{Credit}_t, 
+  \text{Credit/GDP}_t, 
+  \text{House}_t 
+  ] 
+\label{eq:vars}
+\end{equation}
+
+All the variables included here are stationary (see Annex
+\ref{annex-unit-root} for unit root test). Considering the limited size
+of the data, I estimate the model with Bayesian method to avoid the
+``curse of dimensionality''. I adopt the Minnesota prior and set the
+prior AR(1) coefficient to zero.\footnote{Other parameters of the
+  Minnesota prior are left with standard settings: \(\lambda_1=0.2\)
+  (overall tightness), \(\lambda_2=1\) (relative cross-variable weight),
+  \(\lambda_3=1\) (lag decay).} To identify the structural shocks,
+Cholesky decomposition is applied to the residuals with regard to the
+ordering of variables as in Equation (\ref{eq:vars}).\footnote{This
+  ordering is justified as follows: the ordering of output, price level
+  and interest rate follows directly from standard IS/LM models, in
+  which output responses to price level only with lags, and central
+  banks set interest rate in response to both output and price level. It
+  is reasonable to expect credit follows interest rate, not the other
+  way around. And credit fuels the purchasing of real estate. However,
+  the results are robust to different ordering the variables. Annex
+  \ref{annex-ordering} tests the sensitivity of the impulse responses to
+  different ordering.}
+
+The impulse responses of all variables are provided in Annex
+\ref{annex-impulse}. I focus here on response of real variables to
+proxies of financial cycles. Figure \ref{fig:imp_gdp} shows the
+(accumulated) impulse response of GDP to innovations in credit, credit
+to GDP ratio, and housing price. It shows that an unexpected increase in
+all three variables leads to increase of real output, with housing price
+the most prominent. The up trend peaks after roughly 10 quarters, then
+the trend starts to reverse. This suggests a financial expansion
+presages an immediate bump up in real output, and then a subsequent
+decline.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=0.49\linewidth]{../graph/imp_gdp} \includegraphics[width=0.49\linewidth]{../graph/imp_gdp_acc} 
+
+}
+
+\caption{Impulse response of GDP to innovations}\label{fig:imp_gdp}
+\end{figure}
+
+Figure \ref{fig:imp_cpi} shows the response of price level, measured by
+CPI, to an unexpected upward movement of financial cycle. Price level
+responds positively to all three innovations, but price is much more
+sensitive to credit shocks than output. The up-moving trend of the price
+level peaks in 9 quarters after a positive credit shock. The rising
+house price has more enduring impact on price level -- the upward
+movement lasts for 12 quarters before its reversal.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=0.49\linewidth]{../graph/imp_cpi} \includegraphics[width=0.49\linewidth]{../graph/imp_cpi_acc} 
+
+}
+
+\caption{Impulse response of CPI to innovations}\label{fig:imp_cpi}
+\end{figure}
+
+Why the business cycle reverses its trend in two and a half years after
+a financial expansion? The response of interest rate to financial cycle
+might shed some light. As shown in Figure \ref{fig:imp_ir}, upward
+movement of credit or housing price elicits rise in interest rate. The
+response of interest rate is especially aggressive to rising housing
+price. The rising interest rate tightens financial conditions and curbs
+real economic activities. This possibly explains the reversal of the
+business cycle after a short-run expansion.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=0.49\linewidth]{../graph/imp_ir} \includegraphics[width=0.49\linewidth]{../graph/imp_ir_acc} 
+
+}
+
+\caption{Impulse response of interest rate to innovations}\label{fig:imp_ir}
+\end{figure}
+
+Based on the orthogonalised shocks, one can calculate the contributions
+of each shocks to the development of economic process. This may help
+understand the role of financial factors in shaping business cycles.
+Figure \ref{fig:hd_gdp} decomposes the historical cycles of GDP and CPI
+into different shocks. A full list of historical decomposition can be
+found in Annex \ref{annex-hd-full}.
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=0.49\linewidth]{../graph/hd_gdp} \includegraphics[width=0.49\linewidth]{../graph/hd_cpi} 
+
+}
+
+\caption{Historical decomposition}\label{fig:hd_gdp}
+\end{figure}
+
+As shown in Figure \ref{fig:hd_gdp}, real GDP cycles are mostly
+contributed by shocks to itself and shocks to CPI. Credit shocks played
+an important role during before and during the GFC. The importance of
+credit gradually moderated after the GFC. An exception is the year of
+2012, in which credit shocks again played a prominent role. This was a
+period when China's financial sector undertook ``innovations'' to
+circumvent regulations.
+
+House price historically played a prominent role in affecting the
+business cycle. A notable feature is that house price tends to play a
+supportive role when China's GDP swings below the growth trend. This can
+be explained by that China's authority typically relax the policies that
+restrict home purchase to counter economic downturn pressure. For
+example, during the economic downturn in 2014, most cities remove the
+limits on the number of homes one can buy. The importance of house price
+attenuated since 2016, as the authority adopted the ``long-term
+mechanism'' for real estate regulation.
+
 \hypertarget{discussion}{%
 \section{Discussion}\label{discussion}}
 
 The last section in the document will be used as the section title for
 the bibliography.
 
-\hypertarget{references}{%
-\section*{References}\label{references}}
-\addcontentsline{toc}{section}{References}
+\hypertarget{reference}{%
+\section{Reference}\label{reference}}
 
 \hypertarget{refs}{}
 \leavevmode\hypertarget{ref-Borio2014}{}%
@@ -435,6 +569,45 @@ Zhu, T., \& Huang, H. (2018). China's financial cycle: Indicators,
 methods and empirical research. \emph{Journal of Financial Research
 (Chinese)}, \emph{462}, 55--71.
 \url{http://www.jryj.org.cn/CN/abstract/article_550.shtml}
+
+\hypertarget{appendix}{%
+\section{Appendix}\label{appendix}}
+
+\hypertarget{annex-unit-root}{%
+\subsection*{Unit root test for the variables}\label{annex-unit-root}}
+\addcontentsline{toc}{subsection}{Unit root test for the variables}
+
+\begin{center}\includegraphics[width=0.5\linewidth]{../graph/ar_root} \end{center}
+
+\hypertarget{annex-residuals}{%
+\subsection*{Residual diagnosis of VAR model}\label{annex-residuals}}
+\addcontentsline{toc}{subsection}{Residual diagnosis of VAR model}
+
+\begin{center}\includegraphics[width=1\linewidth]{../graph/var_resid} \end{center}
+
+\hypertarget{annex-impulse}{%
+\subsection*{Impulse responses of all variables}\label{annex-impulse}}
+\addcontentsline{toc}{subsection}{Impulse responses of all variables}
+
+\begin{center}\includegraphics[width=1\linewidth]{../graph/imp_full} \end{center}
+
+\begin{center}\includegraphics[width=1\linewidth]{../graph/imp_full_acc} \end{center}
+
+\hypertarget{annex-hd-full}{%
+\subsection*{Historical decomposition of all
+variables}\label{annex-hd-full}}
+\addcontentsline{toc}{subsection}{Historical decomposition of all
+variables}
+
+\begin{center}\includegraphics[width=1\linewidth]{../graph/hd_full} \end{center}
+
+\hypertarget{annex-ordering}{%
+\subsection*{Robustness to different ordering of
+variables}\label{annex-ordering}}
+\addcontentsline{toc}{subsection}{Robustness to different ordering of
+variables}
+
+\begin{center}\includegraphics[width=1\linewidth]{../graph/imp_ordering} \end{center}
 
 
 

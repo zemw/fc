@@ -33,7 +33,7 @@ knitr::opts_chunk$set(fig.env="figure") # Latex figure environment
 
 # Introduction
 
-The Global Financial Crisis has triggered a rethink of the role of finance to the real economy. 
+The Global Financial Crisis has prompted a rethink of the role of finance to the real economy. 
 Though the view that financial factors generate economic fluctuations has been along for centuries, 
 the mainstream neoclassical thinking is that "money is a veil" and financial institutions are just 
 intermediaries which alters no substance in the real economy. 
@@ -50,9 +50,13 @@ and how it intereacts with real business cycles (Claessens, 2011).
 
 # Data and methodology
 
-```{r load, include=FALSE}
+```{r, include=FALSE}
 library(kableExtra)
+library(tsibble)
+library(vars)
+```
 
+```{r, include=FALSE}
 source("../script/ceic.R")
 source("../script/filter.R")
 
@@ -140,15 +144,26 @@ data_raw <-
 ```
 
 
-```{r raw_data, fig.height=3.5, fig.cap = "Time series of main indicators (seasonally-adjusted)" }
+```{r raw_data, fig.cap = "Time series of main indicators (YoY)" }
+# fig.heighht = 3.5
 # plot seasonally-adjusted time series
+# data_raw %>%
+#   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
+#   group_by(indicator) %>%
+#   mutate(value_sa = x11_adjust(value, date) %$% final) %>%
+#   ggplot(aes(x = date, y = value_sa)) +
+#   facet_wrap(~indicator, scales = "free_y") + 
+#   geom_line() + labs(x = NULL, y = NULL)
+
+# YoY difference
 data_raw %>%
+  mutate_at(2:6, ~diff_vec(., lag = 4, log = T)) %>%
   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
   group_by(indicator) %>%
-  mutate(value_sa = x11_adjust(value, date) %$% final) %>%
-  ggplot(aes(x = date, y = value_sa)) +
-  facet_wrap(~indicator, scales = "free_y") + 
+  ggplot(aes(x = date, y = value)) +
+  facet_wrap(~indicator, scales = "free_y") +
   geom_line() + labs(x = NULL, y = NULL)
+  
 ```
 
 ```{r, include=FALSE}
@@ -517,9 +532,148 @@ House prices have almost half of the cycles overlapped with all other variables,
 though the concordance with interest rate is slightly higher up to 62%.
 
 
+# Dynamic relations
+
+This section employs a VAR model to elicit the inter-relationship between the variables of interest. 
+The reduced-form of the model is as following
+
+\begin{equation}
+y_t = c + \sum_{j=1}^{p} \Phi_j y_{t-j} + u_t 
+\label{eq:var-model}
+\end{equation}
+
+where 
+
+\begin{equation}
+y_t = [ 
+  \text{GDP}_t, 
+  \text{CPI}_t, 
+  \text{IR}_t, 
+  \text{Credit}_t, 
+  \text{Credit/GDP}_t, 
+  \text{House}_t 
+  ] 
+\label{eq:vars}
+\end{equation}
+
+All the variables included here are stationary (see Annex \ref{annex-unit-root} for unit root test). 
+Considering the limited size of the data, I estimate the model with Bayesian method 
+to avoid the "curse of dimensionality".
+I adopt the Minnesota prior and set the prior AR(1) coefficient to zero. 
+^[Other parameters of the Minnesota prior are left with standard settings: 
+$\lambda_1=0.2$ (overall tightness), 
+$\lambda_2=1$ (relative cross-variable weight), 
+$\lambda_3=1$ (lag decay).]
+To identify the structural shocks, Cholesky decomposition is applied to the residuals 
+with regard to the ordering of variables as in Equation (\ref{eq:vars}).
+^[This ordering is justified as follows: the ordering of output, price level and interest rate 
+follows directly from standard IS/LM models, in which output responses to price level only with lags, 
+and central banks set interest rate in response to both output and price level. 
+It is reasonable to expect credit follows interest rate, not the other way around. 
+And credit fuels the purchasing of real estate. 
+However, the results are robust to different ordering the variables. 
+Annex \ref{annex-ordering} tests the sensitivity of the impulse responses to different ordering.]
+
+The impulse responses of all variables are provided in Annex \ref{annex-impulse}. 
+I focus here on response of real variables to proxies of financial cycles. 
+Figure \ref{fig:imp_gdp} shows the (accumulated) impulse response of GDP to innovations in 
+credit, credit to GDP ratio, and housing price. 
+It shows that an unexpected increase in all three variables leads to increase of real output, 
+with housing price the most prominent. 
+The up trend peaks after roughly 10 quarters, then the trend starts to reverse.
+This suggests a financial expansion presages an immediate bump up in real output, 
+and then a subsequent decline.
+
+```{r imp_gdp, fig.cap="Impulse response of GDP to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("../graph/imp_gdp.pdf", "../graph/imp_gdp_acc.pdf"))
+```
+
+Figure \ref{fig:imp_cpi} shows the response of price level, measured by CPI, to an unexpected upward movement of financial cycle. 
+Price level responds positively to all three innovations, but price is much more sensitive to credit shocks than output. 
+The up-moving trend of the price level peaks in 9 quarters after a positive credit shock.
+The rising house price has more enduring impact on price level -- 
+the upward movement lasts for 12 quarters before its reversal. 
+
+```{r imp_cpi, fig.cap="Impulse response of CPI to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("../graph/imp_cpi.pdf", "../graph/imp_cpi_acc.pdf"))
+```
+
+Why the business cycle reverses its trend in two and a half years after a financial expansion? 
+The response of interest rate to financial cycle might shed some light. 
+As shown in Figure \ref{fig:imp_ir}, upward movement of credit or housing price elicits rise in interest rate. The response of interest rate is especially aggressive to rising housing price. 
+The rising interest rate tightens financial conditions and curbs real economic activities. 
+This possibly explains the reversal of the business cycle after a short-run expansion. 
+
+```{r imp_ir, fig.cap="Impulse response of interest rate to innovations", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("../graph/imp_ir.pdf", "../graph/imp_ir_acc.pdf"))
+```
+
+
+Based on the orthogonalised shocks, one can calculate the contributions of each shocks to the development of economic process. 
+This may help understand the role of financial factors in shaping business cycles.
+Figure \ref{fig:hd_gdp} decomposes the historical cycles of GDP and CPI into different shocks. 
+A full list of historical decomposition can be found in Annex \ref{annex-hd-full}.
+
+```{r hd_gdp, fig.cap="Historical decomposition", out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("../graph/hd_gdp.pdf", "../graph/hd_cpi.pdf"))
+```
+
+As shown in Figure \ref{fig:hd_gdp}, real GDP cycles are mostly contributed by shocks to itself and 
+shocks to CPI. Credit shocks played an important role during before and during the GFC. 
+The importance of credit gradually moderated after the GFC. 
+An exception is the year of 2012, in which credit shocks again played a prominent role. 
+This was a period when China's financial sector undertook "innovations" to circumvent regulations. 
+
+House price historically played a prominent role in affecting the business cycle. 
+A notable feature is that house price tends to play a supportive role when China's GDP swings 
+below the growth trend. 
+This can be explained by that China's authority typically relax the policies that restrict 
+home purchase to counter economic downturn pressure.
+For example, during the economic downturn in 2014, most cities remove the limits on 
+the number of homes one can buy. 
+The importance of house price attenuated since 2016, as the authority adopted the 
+"long-term mechanism" for real estate regulation.
+
 
 # Discussion
 
 The last section in the document will be used as the section title for the bibliography.
 
-# References
+
+# Reference
+
+<div id="refs"></div> 
+
+
+# Appendix 
+
+## Unit root test for the variables {-#annex-unit-root}
+
+```{r, out.width="50%"}
+knitr::include_graphics("../graph/ar_root.pdf")
+```
+
+## Residual diagnosis of VAR model {-#annex-residuals}
+
+```{r}
+knitr::include_graphics("../graph/var_resid.pdf")
+```
+
+## Impulse responses of all variables {-#annex-impulse}
+
+```{r}
+knitr::include_graphics("../graph/imp_full.pdf")
+knitr::include_graphics("../graph/imp_full_acc.pdf")
+```
+
+## Historical decomposition of all variables {-#annex-hd-full}
+
+```{r}
+knitr::include_graphics("../graph/hd_full.pdf")
+```
+
+## Robustness to different ordering of variables {-#annex-ordering}
+
+```{r}
+knitr::include_graphics("../graph/imp_ordering.png")
+```
