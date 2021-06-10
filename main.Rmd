@@ -21,19 +21,22 @@ library(kableExtra)
 
 # Introduction
 
-The Global Financial Crisis has prompted a rethink of the role of finance to the real economy. 
-Though the view that financial factors generate economic fluctuations has been along for centuries, 
-the mainstream neoclassical thinking is that "money is a veil" and financial institutions are just 
-intermediaries which alters no substance in the real economy. 
+The Global Financial Crisis has prompted a rethink of the role of finance to the
+real economy. Though the view that financial factors generate economic
+fluctuations has been along for centuries, the mainstream neoclassical thinking
+is that "money is a veil" and financial institutions are just intermediaries
+which alters no substance in the real economy.
 
-However, the onset of GFC demonstrated the great disruptions that financial factors could bring about. 
-It is clear that the relationship between the "Wall Street" and the "Main Street" is not fully 
-captured by just interest rates -- as it is commonly assumed in neoclassical literature. 
+However, the onset of GFC demonstrated the great disruptions that financial
+factors could bring about. It is clear that the relationship between the "Wall
+Street" and the "Main Street" is not fully captured by just interest rates -- 
+as it is commonly assumed in neoclassical literature.
 
-After the GFC, growing efforts have been devoted to bridge the gap between finance and real economy. 
-On the theoretical side, notably, Gertler and Kiyotaki (2011). 
-Empirical literature have focused on capturing the regularities of financial cycles 
-and how it intereacts with real business cycles (Claessens, 2011).
+After the GFC, growing efforts have been devoted to bridge the gap between
+finance and real economy. On the theoretical side, notably, Gertler and Kiyotaki
+(2011). Empirical literature have focused on capturing the regularities of
+financial cycles and how it intereacts with real business cycles
+(Claessens, 2011).
 
 
 # Data and methodology
@@ -52,41 +55,51 @@ data_cyl <-
 
 ## Choice of variables
 
-I choose three indicators to characterize the financial cycles: credit, house price and credit to GDP ratio.
-Credit reflects the aggregate claims created by the financial system, which is a natural choice to represent financial cycles. 
-Credit is also regarded by some as the single most powerful indicator for financial crisis [@Schularick2012]. 
-In this paper, I use the Total Credit to the Non-Financial Sector from the BIS credit statistics.
-^[BIS total credit comprises financing from all sources, including domestic banks, 
-other domestic financial corporations, non-financial corporations and non-residents.
-The financial instruments covered comprise currency and deposits, loans and debt securities. 
-Debt securities include bonds and short-term papers; equities, insurance, pension funds are not included.
-In Chinese literature, the Aggregate Financing to the Real Economy (AFRE) indicator is more widely used. 
-However, the AFRE statistics are only available yearly after 2002, and monthly after 2014. 
-The coverage of BIS total credit and AFRE largely overlapped. 
-The correlation between BIS total credit and AFRE after 2014 is 0.9944.
-To preserve consistency in data, BIS total credit is used throughout in this paper.]
-To measure how much credit is "over-expanded" relative to the size of the economy, 
-credit to GDP ratio is calculated and included as a separate indicator. 
+I choose three indicators to characterize the financial cycles: credit, house
+price and credit to GDP ratio. Credit reflects the aggregate claims created by
+the financial system, which is a natural choice to represent financial cycles.
+Credit is also regarded by some as the single most powerful indicator for
+financial crisis [@Schularick2012]. In this paper, I use the Total Credit to
+the Non-Financial Sector from the BIS credit statistics. ^[BIS total credit
+comprises financing from all sources, including domestic banks, other domestic
+financial corporations, non-financial corporations and non-residents. The
+financial instruments covered comprise currency and deposits, loans and debt
+securities. Debt securities include bonds and short-term papers; equities,
+insurance, pension funds are not included. In Chinese literature, the Aggregate
+Financing to the Real Economy (AFRE) indicator is more widely used. However, the
+AFRE statistics are only available yearly after 2002, and monthly after 2014.
+The coverage of BIS total credit and AFRE largely overlapped. The correlation
+between BIS total credit and AFRE after 2014 is 0.9944. To preserve consistency
+in data, BIS total credit is used throughout in this paper.] To measure how
+much credit is "over-expanded" relative to the size of the economy, credit to
+GDP ratio is calculated and included as a separate indicator.
 
-House price is another important indicator of financial cycles. 
-House properties, though being real estate, have many similar characteristics as financial assets. 
-As the most commonly accepted collateral for credit, house prices capture the endogenous relationship between entities' net worth, borrowing constraints, and credit creation. 
-Strong evidence suggests household leverage (mainly through mortgage loans) influences business cycles through credit supply channels [@Mian2017]. 
-In this paper, I use the Average Price of Commercial Residential Buildings from the National Bureau of Statistics as a measure of house prices.
-^[This only includes a portion of the total residential properties in China, indemnificatory housing and other types of public-built private-owned housing are not included in this statistics. 
-But narrowing down to privately traded residential properties is a better choice to reflect market conditions.
-In Chinese literature, other indicators, such as average house price of 70 major cities, are more widely used. 
-However, these indicators are only available for recent years. 
-The indicator chosen in this paper traced the house prices back to 1998, the beginning of China's housing reform.  ]
+House price is another important indicator of financial cycles. House
+properties, though being real estate, have many similar characteristics as
+financial assets. As the most commonly accepted collateral for credit, house
+prices capture the endogenous relationship between entities' net worth,
+borrowing constraints, and credit creation. Strong evidence suggests household
+leverage (mainly through mortgage loans) influences business cycles through
+credit supply channels [@Mian2017]. In this paper, I use the Average Price of
+Commercial Residential Buildings from the National Bureau of Statistics as a
+measure of house prices. ^[This only includes a portion of the total
+residential properties in China, indemnificatory housing and other types of
+public-built private-owned housing are not included in this statistics. But
+narrowing down to privately traded residential properties is a better choice to
+reflect market conditions. In Chinese literature, other indicators, such as
+average house price of 70 major cities, are more widely used. However, these
+indicators are only available for recent years. The indicator chosen in this
+paper traced the house prices back to 1998, the beginning of China's housing
+reform. ]
 
-The data are at quarterly frequency, ranging from 1999 to 2019. 
-The data starts from 1999, firstly due to the data availability; 
-secondly, considering China took a major reform in the housing market in July 1998 -- 
-since then residential properties can be freely traded in the market -- 
-the house prices before 1999 have little value for the purpose of this paper. 
-The time series are seasonally adjusted whenever necessary. 
-^[Except for GDP, I do not adjust the data for inflation. 
-For the purpose of studying financial cycles, it is the nominal values that matter. ]
+The data are at quarterly frequency, ranging from 1999 to 2019. The data starts
+from 1999, firstly due to the data availability; secondly, considering China
+took a major reform in the housing market in July 1998 -- since then residential
+properties can be freely traded in the market -- the house prices before 1999
+have little value for the purpose of this paper. The time series are seasonally
+adjusted whenever necessary. ^[Except for GDP, I do not adjust the data for
+inflation. For the purpose of studying financial cycles, it is the nominal
+values that matter. ]
 
 
 ```{r raw_data, include=F}
@@ -112,29 +125,29 @@ data_cyl %>%
 
 ## Cycle extraction
 
-There are many methodologies to identify cycles in macroeconomic variables. 
-The classical method tracks absolute increase or decrease of economic activities. 
-For example, a recession is identified by two consecutive quarters of declines of GDP.
-However, this "classical" business cycle definition is not suitable for fast-growing economies,
-in which macroeconomic variables are constantly in upward movement. 
-For fast-growing economies, the "growth cycle methodology" is more appropriate, 
-which identifies cycles as fluctuations around a trend. 
-In this paper, I apply the Hodrick-Prescott (HP) filter to extract the cyclical components from the time series.
-^[The lambda value is set to 1600 for quarterly data as suggested by @Hodrick1997. 
-There are other methods used for cycle extraction in the literature. 
-For example, @Mayong2016 applied HP filter to YoY changes of variables. 
-This method is problematic, because HP filter is designed to obtain trends by smoothing out short-term fluctuations. Performing year-to-year difference by default removes the trend.
-Another popular approach is to apply Bank-Pass filters such as Christiano-Fitzgerald (CF) filter.
-This is the approach adopted by @Drehmann2012 and @Taihui2018. 
-However, CF filter pre-imposes the length of the cycle to be within a certain band. 
-According to @Drehmann2012, the short-term cycles are between 1 and 8 years, and
-mid-term cycles are between 8 to 30 years. 
-Since China's data is available for merely 20 years, applying the CF filter is unnecessary and 
-bears the risk of losing too much information.
-]
-Log-transformation is applied to variables that grow proportionately to their sizes
-such as GDP, credit and house prices. 
-The magnitude of the cycles are standardized by their starndard deviation.
+There are many methodologies to identify cycles in macroeconomic variables. The
+classical method tracks absolute increase or decrease of economic activities.
+For example, a recession is identified by two consecutive quarters of declines
+of GDP. However, this "classical" business cycle definition is not suitable for
+fast-growing economies, in which macroeconomic variables are constantly in
+upward movement. For fast-growing economies, the "growth cycle methodology" is
+more appropriate, which identifies cycles as fluctuations around a trend. In
+this paper, I apply the Hodrick-Prescott (HP) filter to extract the cyclical
+components from the time series. ^[The lambda value is set to 1600 for
+quarterly data as suggested by @Hodrick1997. There are other methods used for
+cycle extraction in the literature. For example, @Mayong2016 applied HP filter
+to YoY changes of variables. This method is problematic, because HP filter is
+designed to obtain trends by smoothing out short-term fluctuations. Performing
+year-to-year difference by default removes the trend. Another popular approach
+is to apply Bank-Pass filters such as Christiano-Fitzgerald (CF) filter. This is
+the approach adopted by @Drehmann2012 and @Taihui2018. However, CF filter
+pre-imposes the length of the cycle to be within a certain band. According to
+@Drehmann2012, the short-term cycles are between 1 and 8 years, and mid-term
+cycles are between 8 to 30 years. Since China's data is available for merely 20
+years, applying the CF filter is unnecessary and bears the risk of losing too
+much information. ] Log-transformation is applied to variables that grow
+proportionately to their sizes such as GDP, credit and house prices. The
+magnitude of the cycles are standardized by their standard deviation.
 
 
 ```{r}
@@ -143,12 +156,14 @@ data_cyl_std <- data_cyl %>%
   mutate_at(vars(-date), ~ ./sd(.))
 ```
 
-@Harding2002's (medium-term) turning-point algorithm is then applied to identify peaks and troughs of the cycles. Specifically, the algorithm involves two steps:
-(1) identifying local maxima and minima over a window of 9 quarters; 
-(2) imposing censoring rules that the minimum length of each phase of upturn or downturn is 2 quarters;
-Further, I impose a third restriction: 
-(3) peaks and troughs must appear alternately, that is there must be one and only one peaks (troughs) between two troughs (peaks).
-Figure \ref{fig:cycle-tp} plots the HP filtered cycles of the variables together with the identified turning points.
+@Harding2002's (medium-term) turning-point algorithm is then applied to identify
+peaks and troughs of the cycles. Specifically, the algorithm involves two steps:
+(1) identifying local maxima and minima over a window of 9 quarters; (2)
+imposing censoring rules that the minimum length of each phase of upturn or
+downturn is 2 quarters; Further, I impose a third restriction: (3) peaks and
+troughs must appear alternately, that is there must be one and only one peaks
+(troughs) between two troughs (peaks). Figure \\ref{fig:cycle-tp} plots the HP
+filtered cycles of the variables together with the identified turning points.
 
 ```{r}
 # Identify turning point using Harding and Pagan algorithm
@@ -361,29 +376,34 @@ kbl(stat_dur_amp, digits = 2, booktabs = T,
   kable_styling(full_width = F)
 ```
 
-Based on the identified turning points in Section \ref{cycle-extraction}, 
-I calculated the duration and amplitude of the cycles for each series (Table \ref{tab:dur-amp}).
-The duration of an upturn (downturn) is defined as the quarters from a trough (peak) to a peak (trough).
-The amplitude of an upturn (downturn) is defined as the largest positive (negative) deviation from the trend. 
+Based on the identified turning points in Section \\ref{cycle-extraction}, I
+calculated the duration and amplitude of the cycles for each series (Table
+\\ref{tab:dur-amp}). The duration of an upturn (downturn) is defined as the
+quarters from a trough (peak) to a peak (trough). The amplitude of an upturn
+(downturn) is defined as the largest positive (negative) deviation from the
+trend.
 
-Table \ref{tab:dur-amp} shows 
-(1) Most variables have full cycles of 10-13 quarters, while GDP and Credit/GDP demonstrate considerable longer cycles that lasts 18-19 quarters. 
-^[Spectrum analysis suggests GDP series has a 22-quarter cycle, CPI a 15-quarter cycle, 
-property price a 22-quarter cycle and a 12-quarter cycle, 
-credit a 18-quarter cycle and a 12-quarter cycle.]
-(2) Most variables exhibit longer quarters of downturn than upturn. 
-An upturn takes an average of 5-8 quarters, while a downturn generally takes 6-11 quarters. 
-(3) For GDP and credit, the downturns are more severe than the upturns (more pronounced amplitude). 
-While for houses, price levels, and interest rates, the amplitude of troughs are relatively mild compared to peaks. 
-^[The numbers here demonstrate drastically different characteristics from financial or business cycles concluded from developed economies [@Claessens2012;@Borio2014]. 
-In the later case, financial variables generally have longer cycles than real variables, 
-and upturns are typically more pronounced in magnitude than downturns. 
-The difference is partly due to the different methodology adopted in this paper. 
-The "growth cycle method" is more sensitive to downturns than the "classical method".
-Institutional factors also affect the behavior of macroeconomic variables. 
-For example, strong counter-cyclical fiscal policy is usually adopted in China during downturns.
-These factors make real GDP more stable than financial variables. 
-The results here are consistent with conclusions from Chinese literature [@Yinan2016; @Taihui2018]. ]
+Table \\ref{tab:dur-amp} shows (1) Most variables have full cycles of 10-13
+quarters, while GDP and Credit/GDP demonstrate considerable longer cycles that
+lasts 18-19 quarters. ^[Spectrum analysis suggests GDP series has a 22-quarter
+cycle, CPI a 15-quarter cycle, property price a 22-quarter cycle and
+a 12-quarter cycle, credit a 18-quarter cycle and a 12-quarter cycle.] (2) Most
+variables exhibit longer quarters of downturn than upturn. An upturn takes an
+average of 5-8 quarters, while a downturn generally takes 6-11 quarters. (3) For
+GDP and credit, the downturns are more severe than the upturns (more pronounced
+amplitude). While for houses, price levels, and interest rates, the amplitude of
+troughs are relatively mild compared to peaks. ^[The numbers here demonstrate
+drastically different characteristics from financial or business cycles
+concluded from developed economies [@Claessens2012;@Borio2014]. In the later
+case, financial variables generally have longer cycles than real variables, and
+upturns are typically more pronounced in magnitude than downturns. The
+difference is partly due to the different methodology adopted in this paper. The
+"growth cycle method" is more sensitive to downturns than the "classical
+method". Institutional factors also affect the behavior of macroeconomic
+variables. For example, strong counter-cyclical fiscal policy is usually adopted
+in China during downturns. These factors make real GDP more stable than
+financial variables. The results here are consistent with conclusions from
+Chinese literature [@Yinan2016; @Taihui2018]. ]
 
 ```{r, include=FALSE}
 gg_spec <- function(x, log=FALSE) {
@@ -399,21 +419,21 @@ gg_spec <- function(x, log=FALSE) {
 
 ## Correlation and concordance
 
-Figure \ref{fig:corr} shows the correlation between the series. 
-GDP and CPI have a strong positive correlation, and 
-both of them are positively correlated with the interest rate. 
-Credit is negatively correlated with the interest rate, and 
-hence negatively correlated with GDP and CPI. 
-House prices do not exhibit strong correlations with any other series. 
+Figure \\ref{fig:corr} shows the correlation between the series. GDP and CPI
+have a strong positive correlation, and both of them are positively correlated
+with the interest rate. Credit is negatively correlated with the interest rate,
+and hence negatively correlated with GDP and CPI. House prices do not exhibit
+strong correlations with any other series.
 
 ```{r corr, fig.cap="Correlation between series", message=FALSE}
 data_cyl_std %>% GGally::ggpairs(columns = 2:7)
 ```
 
-To further shed some light on the concordance of the cycles of different series, 
-I calculated the concordance score between the variables as did by @Drehmann2012.
-Concordance measures the percentage of time for which two series are in the same phase (upturn or downturn).
-Specifically, the concordance scroe is defined as
+To further shed some light on the concordance of the cycles of different series,
+I calculated the concordance score between the variables as did by
+@Drehmann2012. Concordance measures the percentage of time for which two series
+are in the same phase (upturn or downturn). Specifically, the concordance scroe
+is defined as
 
 $$ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})(1-\rho_t^{Y})]$$
 
@@ -448,17 +468,18 @@ stat_concord %>%
 ```
 
 
-The concordance scores (Table \ref{tab:cord}) shows that GDP and CPI have 68% of their cycles overlapped. 
-Interest rate cycles overlap 67% of GDP cycles, 64% of credit cycles, and 62% of house price cycles. 
-Credit cycles have relatively low concordance with real variables, 55% with GDP, and 39% with CPI. 
-House prices have almost half of the cycles overlapped with all other variables, 
+The concordance scores (Table \\ref{tab:cord}) shows that GDP and CPI have 68%
+of their cycles overlapped. Interest rate cycles overlap 67% of GDP cycles, 64%
+of credit cycles, and 62% of house price cycles. Credit cycles have relatively
+low concordance with real variables, 55% with GDP, and 39% with CPI. House
+prices have almost half of the cycles overlapped with all other variables,
 though the concordance with interest rate is slightly higher up to 62%.
 
 
 # Dynamic relations
 
-This section employs a VAR model to elicit the inter-relationship between the variables of interest. 
-The reduced-form of the model is as following
+This section employs a VAR model to elicit the inter-relationship between the
+variables of interest. The reduced-form of the model is as following
 
 \begin{equation}
 y_t = c + \sum_{j=1}^{p} \Phi_j y_{t-j} + u_t 
@@ -479,82 +500,85 @@ y_t = [
 \label{eq:vars}
 \end{equation}
 
-All the variables included here are stationary (see Annex \ref{annex-unit-root} for unit root test). 
-Considering the limited size of the data, I estimate the model with Bayesian method 
-to avoid the "curse of dimensionality".
-I adopt the Minnesota prior and set the prior AR(1) coefficient to zero. 
-^[Other parameters of the Minnesota prior are left with standard settings: 
-$\lambda_1=0.2$ (overall tightness), 
-$\lambda_2=1$ (relative cross-variable weight), 
-$\lambda_3=1$ (lag decay).]
-To identify the structural shocks, Cholesky decomposition is applied to the residuals 
-with regard to the ordering of variables as in Equation (\ref{eq:vars}).
-^[This ordering is justified as follows: the ordering of output, price level and interest rate 
-follows directly from standard IS/LM models, in which output responses to price level only with lags, 
-and central banks set interest rate in response to both output and price level. 
-It is reasonable to expect credit follows interest rate, not the other way around. 
-And credit fuels the purchasing of real estate. 
-However, the results are robust to different ordering the variables. 
-Annex \ref{annex-ordering} tests the sensitivity of the impulse responses to different ordering.]
+All the variables included here are stationary (see Annex \\ref{annex-unit-root}
+for unit root test). Considering the limited size of the data, I estimate the
+model with Bayesian method to avoid the "curse of dimensionality". I adopt the
+Minnesota prior and set the prior AR(1) coefficient to zero. ^[Other parameters
+of the Minnesota prior are left with standard settings: $\\lambda\_1=0.2$
+(overall tightness), $\\lambda\_2=1$ (relative cross-variable weight),
+$\\lambda\_3=1$ (lag decay).] To identify the structural shocks, Cholesky
+decomposition is applied to the residuals with regard to the ordering of
+variables as in Equation (\\ref{eq:vars}). ^[This ordering is justified as
+follows: the ordering of output, price level and interest rate follows directly
+from standard IS/LM models, in which output responses to price level only with
+lags, and central banks set interest rate in response to both output and price
+level. It is reasonable to expect credit follows interest rate, not the other
+way around. And credit fuels the purchasing of real estate. However, the results
+are robust to different ordering the variables. Annex \\ref{annex-ordering}
+tests the sensitivity of the impulse responses to different ordering.]
 
-The impulse responses of all variables are provided in Annex \ref{annex-impulse}. 
-I focus here on response of real variables to proxies of financial cycles. 
-Figure \ref{fig:imp-gdp} shows the (accumulated) impulse response of GDP to innovations in 
-credit, credit to GDP ratio, and housing price. 
-It shows that an unexpected increase in all three variables leads to increase of real output, 
-with housing price the most prominent. 
-The up trend peaks after roughly 10 quarters, then the trend starts to reverse.
-This suggests a financial expansion presages an immediate bump up in real output, 
-and then a subsequent decline.
+The impulse responses of all variables are provided in Annex
+\\ref{annex-impulse}. I focus here on response of real variables to proxies of
+financial cycles. Figure \\ref{fig:imp-gdp} shows the (accumulated) impulse
+response of GDP to innovations in credit, credit to GDP ratio, and housing
+price. It shows that an unexpected increase in all three variables leads to
+increase of real output, with housing price the most prominent. The up trend
+peaks after roughly 10 quarters, then the trend starts to reverse. This suggests
+a financial expansion presages an immediate bump up in real output, and then a
+subsequent decline.
 
 ```{r imp-gdp, fig.cap="Impulse response of GDP to innovations", out.width="49%", fig.show="hold"}
 knitr::include_graphics(c("graph/imp_gdp.pdf", "graph/imp_gdp_acc.pdf"))
 ```
 
-Figure \ref{fig:imp-cpi} shows the response of price level, measured by CPI, to an unexpected upward movement of financial cycle. 
-Price level responds positively to all three innovations, but price is much more sensitive to credit shocks than output. 
-The up-moving trend of the price level peaks in 9 quarters after a positive credit shock.
-The rising house price has more enduring impact on price level -- 
-the upward movement lasts for 12 quarters before its reversal. 
+Figure \\ref{fig:imp-cpi} shows the response of price level, measured by CPI, to
+an unexpected upward movement of financial cycle. Price level responds
+positively to all three innovations, but price is much more sensitive to credit
+shocks than output. The up-moving trend of the price level peaks in 9 quarters
+after a positive credit shock. The rising house price has more enduring impact
+on price level -- the upward movement lasts for 12 quarters before its reversal.
 
 ```{r imp-cpi, fig.cap="Impulse response of CPI to innovations", out.width="49%", fig.show="hold"}
 knitr::include_graphics(c("graph/imp_cpi.pdf", "graph/imp_cpi_acc.pdf"))
 ```
 
-Why the business cycle reverses its trend in two and a half years after a financial expansion? 
-The response of interest rate to financial cycle might shed some light. 
-As shown in Figure \ref{fig:imp-ir}, upward movement of credit or housing price elicits rise in interest rate. The response of interest rate is especially aggressive to rising housing price. 
-The rising interest rate tightens financial conditions and curbs real economic activities. 
-This possibly explains the reversal of the business cycle after a short-run expansion. 
+Why the business cycle reverses its trend in two and a half years after a
+financial expansion? The response of interest rate to financial cycle might shed
+some light. As shown in Figure \\ref{fig:imp-ir}, upward movement of credit or
+housing price elicits rise in interest rate. The response of interest rate is
+especially aggressive to rising housing price. The rising interest rate tightens
+financial conditions and curbs real economic activities. This possibly explains
+the reversal of the business cycle after a short-run expansion.
 
 ```{r imp-ir, fig.cap="Impulse response of interest rate to innovations", out.width="49%", fig.show="hold"}
 knitr::include_graphics(c("graph/imp_ir.pdf", "graph/imp_ir_acc.pdf"))
 ```
 
 
-Based on the orthogonalised shocks, one can calculate the contributions of each shocks to the development of economic process. 
-This may help understand the role of financial factors in shaping business cycles.
-Figure \ref{fig:hd-gdp} decomposes the historical cycles of GDP and CPI into different shocks. 
-A full list of historical decomposition can be found in Annex \ref{annex-hd-full}.
+Based on the orthogonalised shocks, one can calculate the contributions of each
+shocks to the development of economic process. This may help understand the role
+of financial factors in shaping business cycles. Figure \\ref{fig:hd-gdp}
+decomposes the historical cycles of GDP and CPI into different shocks. A full
+list of historical decomposition can be found in Annex \\ref{annex-hd-full}.
 
 ```{r hd-gdp, fig.cap="Historical decomposition", out.width="49%", fig.show="hold"}
 knitr::include_graphics(c("graph/hd_gdp.pdf", "graph/hd_cpi.pdf"))
 ```
 
-As shown in Figure \ref{fig:hd-gdp}, real GDP cycles are mostly contributed by shocks to itself and 
-shocks to CPI. Credit shocks played an important role during before and during the GFC. 
-The importance of credit gradually moderated after the GFC. 
-An exception is the year of 2012, in which credit shocks again played a prominent role. 
-This was a period when China's financial sector undertook "innovations" to circumvent regulations. 
+As shown in Figure \\ref{fig:hd-gdp}, real GDP cycles are mostly contributed by
+shocks to itself and shocks to CPI. Credit shocks played an important role
+during before and during the GFC. The importance of credit gradually moderated
+after the GFC. An exception is the year of 2012, in which credit shocks again
+played a prominent role. This was a period when China's financial sector
+undertook "innovations" to circumvent regulations.
 
-House price historically played a prominent role in affecting the business cycle. 
-A notable feature is that house price tends to play a supportive role when China's GDP swings 
-below the growth trend. 
-This can be explained by that China's authority typically relax the policies that restrict 
-home purchase to counter economic downturn pressure.
-For example, during the economic downturn in 2014, most cities remove the limits on 
-the number of homes one can buy. 
-The importance of house price attenuated since 2016, as the authority adopted the 
+House price historically played a prominent role in affecting the business
+cycle. A notable feature is that house price tends to play a supportive role
+when China's GDP swings below the growth trend. This can be explained by that
+China's authority typically relax the policies that restrict home purchase to
+counter economic downturn pressure. For example, during the economic downturn
+in 2014, most cities remove the limits on the number of homes one can buy. The
+importance of house price attenuated since 2016, as the authority adopted the
 "long-term mechanism" for real estate regulation.
 
 
