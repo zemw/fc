@@ -1,9 +1,9 @@
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, message = F, warning = F, error = F) 
+knitr::opts_chunk$set(echo = F, message = F, warning = F) 
 knitr::opts_chunk$set(fig.pos = 'h', fig.align = 'center') 
-knitr::opts_chunk$set(out.width = '100%', dpi=300) # Figure resolution and size
-knitr::opts_chunk$set(fig.env="figure") # Latex figure environment
+knitr::opts_chunk$set(out.width = '100%', dpi=300) 
+knitr::opts_chunk$set(fig.env="figure") 
 ```
 
 ```{r libs, include=FALSE}
@@ -15,8 +15,19 @@ library(tsibble)
 library(slider)
 library(xts)
 library(timetk)
+library(patchwork)
 library(rlang)
 library(kableExtra)
+library(dynlm)
+library(broom)
+library(lmtest)
+library(sandwich)
+```
+
+```{r plot-setup, include=FALSE}
+ggplot2::theme_set(theme_minimal() + theme(
+  legend.title = element_blank(), 
+  legend.position = "bottom"))
 ```
 
 # Introduction
@@ -170,7 +181,7 @@ filtered cycles of the variables together with the identified turning points.
 # The medium-term window has 9 quarters
 #  - Y_t is the peak if it is the maximum within the window
 #  - Y_t is the trough if it is the minimum within the window
-data_peak_trough <- data_cyl_std %>%
+data_peak_trough <- data_cyl %>%
   pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
   group_by(indicator) %>%
   mutate(peak = slide_dbl(
@@ -288,7 +299,7 @@ data_peak_trough %>%
   geom_line(aes(y=value)) +
   geom_point(aes(y=peak), shape=24, fill="blue") +
   geom_point(aes(y=trough), shape=21, fill="red") +
-  facet_wrap(~indicator) + 
+  facet_wrap(~indicator, scales = "free_y") + 
   labs(x=NULL, y=NULL) 
 ```
 
@@ -475,8 +486,254 @@ low concordance with real variables, 55% with GDP, and 39% with CPI. House
 prices have almost half of the cycles overlapped with all other variables,
 though the concordance with interest rate is slightly higher up to 62%.
 
+## Event study around financial cycle peaks
+
+```{r}
+data_event <- data_peak_trough %>% 
+  group_by(indicator) %>% 
+  mutate(reverse_peak_cycle = max(peak_cycle) - peak_cycle) %>% 
+  mutate(reverse_trough_cycle = max(trough_cycle) - trough_cycle) %>% 
+  group_by(indicator, peak_cycle) %>% 
+  mutate(after_peak = if_else(peak_cycle == 0, NA_real_, row_number() - 1)) %>% 
+  mutate(before_peak = if_else(reverse_peak_cycle == 0, NA_real_, -1*(n() - row_number() + 1))) %>% 
+  group_by(indicator, trough_cycle) %>% 
+  mutate(after_trough = if_else(trough_cycle == 0, NA_real_, row_number() - 1)) %>% 
+  mutate(before_trough = if_else(reverse_trough_cycle == 0, NA_real_, -1*(n() - row_number() + 1))) %>% 
+  ungroup() %>% select(date, indicator, value, before_peak, after_peak, before_trough, after_trough) %>% 
+  pivot_wider(names_from = indicator, values_from = c(value, before_peak, after_peak, before_trough, after_trough), names_sep = ".")
+```
+
+```{r}
+event_credit_peak <- 
+  bind_rows(
+    data_event %>% 
+      group_by(before_peak.Credit) %>% 
+      summarise_at(vars(contains("value")), mean),
+    data_event %>% 
+      group_by(after_peak.Credit) %>% 
+      summarise_at(vars(contains("value")), mean) 
+  ) %>% 
+  mutate(time = if_else(!is.na(before_peak.Credit), before_peak.Credit, after_peak.Credit)) %>% 
+  select(time, contains("value")) %>% 
+  filter(time %in% -8:8) 
+
+patch_1 <- event_credit_peak %>% 
+  ggplot(aes(x=time)) +
+  geom_line(aes(y=value.GDP*100, col="GDP")) +
+  geom_line(aes(y=value.CPI, col="CPI")) +
+  geom_vline(xintercept = 0, color ="grey") +
+  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
+  labs(x="Quarters after credit peak", y=NULL) +
+  theme(aspect.ratio = 0.8)
+
+event_credit_trough <- 
+  bind_rows(
+    data_event %>% 
+      group_by(before_trough.Credit) %>% 
+      summarise_at(vars(contains("value")), mean),
+    data_event %>% 
+      group_by(after_trough.Credit) %>% 
+      summarise_at(vars(contains("value")), mean) 
+  ) %>% 
+  mutate(time = if_else(!is.na(before_trough.Credit), before_trough.Credit, after_trough.Credit)) %>% 
+  select(time, contains("value")) %>% 
+  filter(time %in% -8:8) 
+
+patch_2 <- event_credit_trough %>% 
+  ggplot(aes(x=time)) +
+  geom_line(aes(y=value.GDP*100, col="GDP")) +
+  geom_line(aes(y=value.CPI, col="CPI")) +
+  geom_vline(xintercept = 0, color ="grey") +
+  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
+  labs(x="Quarters after credit trough", y=NULL) +
+  theme(aspect.ratio = 0.8)
+
+patch_1 + patch_2
+```
+
+```{r}
+event_house_peak <- 
+  bind_rows(
+    data_event %>% 
+      group_by(before_peak.House) %>% 
+      summarise_at(vars(contains("value")), mean),
+    data_event %>% 
+      group_by(after_peak.House) %>% 
+      summarise_at(vars(contains("value")), mean) 
+  ) %>% 
+  mutate(time = if_else(!is.na(before_peak.House), before_peak.House, after_peak.House)) %>% 
+  select(time, contains("value")) %>% 
+  filter(time %in% -8:8) 
+
+patch_1 <- event_house_peak %>% 
+  ggplot(aes(x=time)) +
+  geom_line(aes(y=value.GDP*100, col="GDP")) +
+  geom_line(aes(y=value.CPI, col="CPI")) +
+  geom_vline(xintercept = 0, color ="grey") +
+  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
+  labs(x="Quarters after house price peak", y=NULL) +
+  theme(aspect.ratio = 0.8)
+
+event_house_trough <- 
+  bind_rows(
+    data_event %>% 
+      group_by(before_trough.House) %>% 
+      summarise_at(vars(contains("value")), mean),
+    data_event %>% 
+      group_by(after_trough.House) %>% 
+      summarise_at(vars(contains("value")), mean) 
+  ) %>% 
+  mutate(time = if_else(!is.na(before_trough.House), before_trough.House, after_trough.House)) %>% 
+  select(time, contains("value")) %>% 
+  filter(time %in% -8:8) 
+
+patch_2 <- event_house_trough %>% 
+  ggplot(aes(x=time)) +
+  geom_line(aes(y=value.GDP*100, col="GDP")) +
+  geom_line(aes(y=value.CPI, col="CPI")) +
+  geom_vline(xintercept = 0, color ="grey") +
+  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
+  labs(x="Quarters after house price trough", y=NULL) +
+  theme(aspect.ratio = 0.8)
+
+patch_1 + patch_2 
+```
+
 
 # Dynamic relations
+
+## Local projection
+
+$$ y_{t(p)+ h}=\mu_h + \Phi(L) X_{t(p)} +\epsilon_{t(p)+h} $$
+
+```{r}
+data_lp <- data_peak_trough %>% 
+  select(date, indicator, value, peak, trough) %>% 
+  group_by(indicator) %>% 
+  mutate(L1 = dplyr::lag(value, 1L)) %>%
+  mutate(L2 = dplyr::lag(value, 2L)) %>%
+  mutate(L3 = dplyr::lag(value, 3L)) %>%
+  mutate(L4 = dplyr::lag(value, 4L)) %>%
+  mutate(L5 = dplyr::lag(value, 5L)) %>%
+  mutate(H1 = dplyr::lead(value, 1L)) %>%
+  mutate(H2 = dplyr::lead(value, 2L)) %>%
+  mutate(H3 = dplyr::lead(value, 3L)) %>%
+  mutate(H4 = dplyr::lead(value, 4L)) %>%
+  mutate(H5 = dplyr::lead(value, 5L)) %>%
+  pivot_wider(names_from = indicator, values_from = c(value, peak,  trough, L1:L5, H1:H5)) %>% 
+  rename_with(~gsub("value_", "", .))
+```
+
+```{r}
+data_lp_credit <- data_lp %>% 
+  filter(!is.na(peak_Credit))
+
+fit_lp_credit <- lm(H5_GDP ~ Credit, data = data_lp)
+tidy(fit_lp_credit) 
+summary(fit_lp_credit)
+```
+
+$$ y_{t+h}=\mu_h + \delta_h \text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h} $$
+
+```{r}
+ts_peak_trough <- data_peak_trough %>% 
+  mutate(peak = if_else(is.na(peak), 0, 1)) %>% 
+  mutate(trough = if_else(is.na(trough), 0, 1)) %>% 
+  select(date, indicator, value, peak, trough) %>% 
+  pivot_wider(names_from = indicator, values_from = c(value, peak, trough)) %>% 
+  rename_with(~gsub("value_", "", .)) %>% 
+  ts(data = ., start = c(1999,1), end = c(2019,4), frequency = 4)
+```
+
+```{r}
+# local projection for h period into the future
+# formula: formula in regression; dependent variable must be in the format L(y, h)
+# keep: a vector of independent variable names to keep in the output dataframe
+# ahead: vector 1:h where the forecast of t+h will be computed
+local_projection <- function(formula, keep, ahead, data) {
+  fm <- expr_text(enexpr(formula), width = 200L) 
+
+  map_dfr(ahead, function(.h) {
+    .fm <- gsub("\\bh\\b", -.h, fm)
+    .fit <- dynlm(formula(.fm), data) 
+    .fit %>%
+      tidy(coeftest(., vcov. = vcovHC)) %>% 
+      mutate(ahead = .h, .before = term) %>%
+      mutate(formula = .fm) %>% 
+      filter(term %in% keep) %>% 
+      left_join(
+        glance(.fit) %>% 
+          mutate(ahead = .h) %>% 
+          select(ahead, r.squared, nobs),
+        by = "ahead"
+      )
+  })
+}
+```
+
+```{r}
+dynlm_gdp_credit_peak <- 
+  local_projection(100*L(GDP,h) ~ peak_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
+                   keep=c("peak_Credit", "(Intercept)"), 
+                   ahead=0:6, data=ts_peak_trough) 
+
+dynlm_cpi_credit_peak <- 
+  local_projection(100*L(CPI,h) ~ peak_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
+                   keep=c("peak_Credit", "(Intercept)"), 
+                   ahead=0:6, data=ts_peak_trough) 
+
+dynlm_gdp_credit_trough <- 
+  local_projection(100*L(GDP,h) ~ trough_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
+                   keep=c("trough_Credit", "(Intercept)"), 
+                   ahead=0:6, data=ts_peak_trough) 
+
+dynlm_cpi_credit_trough <- 
+  local_projection(100*L(CPI,h) ~ trough_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
+                   keep=c("trough_Credit", "(Intercept)"), 
+                   ahead=0:6, data=ts_peak_trough) 
+```
+
+```{r}
+patch_1 <- dynlm_gdp_credit_peak %>% 
+  group_by(ahead) %>% 
+  summarise(GDP = sum(estimate)) %>% 
+  inner_join(
+    dynlm_cpi_credit_peak %>% 
+      group_by(ahead) %>% 
+      summarise(CPI = sum(estimate)),
+    by="ahead") %>% 
+  ggplot(aes(x = ahead)) + 
+  geom_line(aes(y = GDP, col = "GDP")) +
+  geom_line(aes(y = CPI/100, col = "CPI")) +
+  geom_hline(yintercept = 0, col = "gray") + 
+  geom_vline(xintercept = 0, col = "gray") + 
+  scale_y_continuous(limits = c(-1.1, 1.1)) +
+  labs(x="Quarters after credit cycle peak", y=NULL) +
+  theme(aspect.ratio = 0.8)
+
+patch_2 <- dynlm_gdp_credit_trough %>% 
+  group_by(ahead) %>% 
+  summarise(GDP = sum(estimate)) %>% 
+  inner_join(
+    dynlm_cpi_credit_trough %>% 
+      group_by(ahead) %>% 
+      summarise(CPI = sum(estimate)),
+    by="ahead") %>% 
+  ggplot(aes(x = ahead)) + 
+  geom_line(aes(y = GDP, col = "GDP")) +
+  geom_line(aes(y = CPI/100, col = "CPI")) +
+  geom_hline(yintercept = 0, col = "gray") + 
+  geom_vline(xintercept = 0, col = "gray") + 
+  scale_y_continuous(limits = c(-1.1, 1.1)) +
+  labs(x="Quarters after credit cycle trough", y=NULL)
+
+patch_1 + patch_2 + plot_annotation(
+  caption = "Controls: Lags of output, inflation and interest rates"
+)
+```
+
+
+## Bayesian VAR
 
 This section employs a VAR model to elicit the inter-relationship between the
 variables of interest. The reduced-form of the model is as following
