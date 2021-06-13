@@ -1,7 +1,7 @@
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F) 
-knitr::opts_chunk$set(fig.pos = 'h', fig.align = 'center') 
+knitr::opts_chunk$set(fig.pos = 'htpb', fig.align = 'center') 
 knitr::opts_chunk$set(out.width = '100%', dpi=300) 
 knitr::opts_chunk$set(fig.env="figure") 
 ```
@@ -22,6 +22,7 @@ library(dynlm)
 library(broom)
 library(lmtest)
 library(sandwich)
+library(stargazer)
 ```
 
 ```{r plot-setup, include=FALSE}
@@ -489,247 +490,254 @@ though the concordance with interest rate is slightly higher up to 62%.
 ## Event study around financial cycle peaks
 
 ```{r}
-data_event <- data_peak_trough %>% 
-  group_by(indicator) %>% 
-  mutate(reverse_peak_cycle = max(peak_cycle) - peak_cycle) %>% 
-  mutate(reverse_trough_cycle = max(trough_cycle) - trough_cycle) %>% 
-  group_by(indicator, peak_cycle) %>% 
-  mutate(after_peak = if_else(peak_cycle == 0, NA_real_, row_number() - 1)) %>% 
-  mutate(before_peak = if_else(reverse_peak_cycle == 0, NA_real_, -1*(n() - row_number() + 1))) %>% 
-  group_by(indicator, trough_cycle) %>% 
-  mutate(after_trough = if_else(trough_cycle == 0, NA_real_, row_number() - 1)) %>% 
-  mutate(before_trough = if_else(reverse_trough_cycle == 0, NA_real_, -1*(n() - row_number() + 1))) %>% 
-  ungroup() %>% select(date, indicator, value, before_peak, after_peak, before_trough, after_trough) %>% 
-  pivot_wider(names_from = indicator, values_from = c(value, before_peak, after_peak, before_trough, after_trough), names_sep = ".")
+# preparing leads and lags data for event study
+data_leads_lags <- ungroup(data_peak_trough) %>% 
+  mutate(name = case_when(
+    indicator == "Credit/GDP" ~ "Leverage", 
+    indicator == "R007" ~ "IR", 
+    TRUE ~ indicator)) %>% 
+  mutate(peak = if_else(is.na(peak), 0L, 1L)) %>% 
+  mutate(trough = if_else(is.na(trough), 0L, 1L)) %>% 
+  select(date, name, value, peak, trough) 
+
+# generate leads and lags
+data_leads_lags %<>% 
+  group_by(name) %>% 
+  mutate(
+    L0 = dplyr::lag(value, 0L),
+    L1 = dplyr::lag(value, 1L), 
+    L2 = dplyr::lag(value, 2L),
+    L3 = dplyr::lag(value, 3L),
+    L4 = dplyr::lag(value, 4L),
+    L5 = dplyr::lag(value, 5L),
+    L6 = dplyr::lag(value, 6L),
+    H1 = dplyr::lead(value, 1L),
+    H2 = dplyr::lead(value, 2L),
+    H3 = dplyr::lead(value, 3L),
+    H4 = dplyr::lead(value, 4L),
+    H5 = dplyr::lead(value, 5L),
+    H6 = dplyr::lead(value, 6L)
+  ) %>% 
+  select(!value) %>% 
+  pivot_wider(values_from = c(L0:L6, H1:H6, peak, trough))
 ```
 
 ```{r}
-event_credit_peak <- 
-  bind_rows(
-    data_event %>% 
-      group_by(before_peak.Credit) %>% 
-      summarise_at(vars(contains("value")), mean),
-    data_event %>% 
-      group_by(after_peak.Credit) %>% 
-      summarise_at(vars(contains("value")), mean) 
-  ) %>% 
-  mutate(time = if_else(!is.na(before_peak.Credit), before_peak.Credit, after_peak.Credit)) %>% 
-  select(time, contains("value")) %>% 
-  filter(time %in% -8:8) 
+# calculate summary statistics around a time event
+# condition: condition for the event (in expression)
+# var_names: vector of variable names to summarize
+summarize_around_event <- function(data, condition, var_names) {
+  # convert H1, L1, ... to 1, -1, ...
+  lags_as_integer <- function(name) {
+    if_else(str_starts(name, "L"), 
+            gsub("L", "-", name), 
+            gsub("H", "", name)
+            ) %>% as.integer
+  }
+  # returns a dataframe with columns:
+  # - index: leads and lags around the event
+  # - columns: mean of variables of interest
+  data %>% 
+    filter({{ condition }}) %>% 
+    select(contains(var_names)) %>% 
+    select(!contains(c("peak", "trough"))) %>% 
+    pivot_longer(everything()) %>% 
+    separate(name, c("index", "name"), remove = T) %>% 
+    mutate(index = lags_as_integer(index)) %>% 
+    group_by(name, index) %>% 
+    # todo: is it okay to remove NAs?
+    summarise(value = mean(value)) %>%  
+    pivot_wider() 
+}
 
-patch_1 <- event_credit_peak %>% 
-  ggplot(aes(x=time)) +
-  geom_line(aes(y=value.GDP*100, col="GDP")) +
-  geom_line(aes(y=value.CPI, col="CPI")) +
-  geom_vline(xintercept = 0, color ="grey") +
-  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
-  labs(x="Quarters after credit peak", y=NULL) +
-  theme(aspect.ratio = 0.8)
-
-event_credit_trough <- 
-  bind_rows(
-    data_event %>% 
-      group_by(before_trough.Credit) %>% 
-      summarise_at(vars(contains("value")), mean),
-    data_event %>% 
-      group_by(after_trough.Credit) %>% 
-      summarise_at(vars(contains("value")), mean) 
-  ) %>% 
-  mutate(time = if_else(!is.na(before_trough.Credit), before_trough.Credit, after_trough.Credit)) %>% 
-  select(time, contains("value")) %>% 
-  filter(time %in% -8:8) 
-
-patch_2 <- event_credit_trough %>% 
-  ggplot(aes(x=time)) +
-  geom_line(aes(y=value.GDP*100, col="GDP")) +
-  geom_line(aes(y=value.CPI, col="CPI")) +
-  geom_vline(xintercept = 0, color ="grey") +
-  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
-  labs(x="Quarters after credit trough", y=NULL) +
-  theme(aspect.ratio = 0.8)
-
-patch_1 + patch_2
+# plot the mean of the variables of interest around the event
+# event_df: must be the returned dataframe from summarize_around_event
+# x_lab: label for x-axis
+# var_names: not applicable at the moment
+plot_event <- function(event_df, x_lab, var_names = c("GDP", "CPI")) {
+  event_df %>% 
+    filter(index >=0 ) %>% 
+    ggplot(aes(x = index)) +
+    geom_line(aes(y = GDP*100, col="GDP")) +
+    geom_line(aes(y = CPI, col="CPI")) +
+    geom_vline(xintercept = 0, col ="grey") +
+    geom_hline(yintercept = 0, col = "grey") + 
+    scale_y_continuous(limits = c(-2, 2)) +
+    labs(x = x_lab, y = NULL) +
+    theme(aspect.ratio = 0.8)
+}
 ```
 
-```{r}
-event_house_peak <- 
-  bind_rows(
-    data_event %>% 
-      group_by(before_peak.House) %>% 
-      summarise_at(vars(contains("value")), mean),
-    data_event %>% 
-      group_by(after_peak.House) %>% 
-      summarise_at(vars(contains("value")), mean) 
-  ) %>% 
-  mutate(time = if_else(!is.na(before_peak.House), before_peak.House, after_peak.House)) %>% 
-  select(time, contains("value")) %>% 
-  filter(time %in% -8:8) 
-
-patch_1 <- event_house_peak %>% 
-  ggplot(aes(x=time)) +
-  geom_line(aes(y=value.GDP*100, col="GDP")) +
-  geom_line(aes(y=value.CPI, col="CPI")) +
-  geom_vline(xintercept = 0, color ="grey") +
-  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
-  labs(x="Quarters after house price peak", y=NULL) +
-  theme(aspect.ratio = 0.8)
-
-event_house_trough <- 
-  bind_rows(
-    data_event %>% 
-      group_by(before_trough.House) %>% 
-      summarise_at(vars(contains("value")), mean),
-    data_event %>% 
-      group_by(after_trough.House) %>% 
-      summarise_at(vars(contains("value")), mean) 
-  ) %>% 
-  mutate(time = if_else(!is.na(before_trough.House), before_trough.House, after_trough.House)) %>% 
-  select(time, contains("value")) %>% 
-  filter(time %in% -8:8) 
-
-patch_2 <- event_house_trough %>% 
-  ggplot(aes(x=time)) +
-  geom_line(aes(y=value.GDP*100, col="GDP")) +
-  geom_line(aes(y=value.CPI, col="CPI")) +
-  geom_vline(xintercept = 0, color ="grey") +
-  #scale_y_continuous(sec.axis = sec_axis(trans = ~.*100)) +
-  labs(x="Quarters after house price trough", y=NULL) +
-  theme(aspect.ratio = 0.8)
-
-patch_1 + patch_2 
+```{r event-credit, fig.cap="Dynamics around credit cycle peaks and troughs"}
+(data_leads_lags %>% 
+  summarize_around_event(., peak_Credit == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after credit cycle peak"))  +
+(data_leads_lags %>% 
+  summarize_around_event(., trough_Credit == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after credit cycle trough"))   
 ```
 
+```{r event-house, fig.cap="Dynamics around real estate cycle peaks and troughs"}
+(data_leads_lags %>% 
+  summarize_around_event(., peak_House == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after real estate cycle peak"))  +
+(data_leads_lags %>% 
+  summarize_around_event(., trough_House == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after real estate cycle trough"))   
+```
+
+```{r event-leverage, fig.cap="Dynamics around leverage cycle peaks and troughs"}
+(data_leads_lags %>% 
+  summarize_around_event(., peak_Leverage == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after leverage cycle peak"))  +
+(data_leads_lags %>% 
+  summarize_around_event(., trough_Leverage == 1L, c("GDP", "CPI")) %>% 
+  plot_event(., "Quarters after leverage cycle trough"))   
+```
 
 # Dynamic relations
 
 ## Local projection
 
-$$ y_{t(p)+ h}=\mu_h + \Phi(L) X_{t(p)} +\epsilon_{t(p)+h} $$
+$$ y_{t+h}=\mu_h + \delta_h\text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h} $$
 
 ```{r}
-data_lp <- data_peak_trough %>% 
-  select(date, indicator, value, peak, trough) %>% 
-  group_by(indicator) %>% 
-  mutate(L1 = dplyr::lag(value, 1L)) %>%
-  mutate(L2 = dplyr::lag(value, 2L)) %>%
-  mutate(L3 = dplyr::lag(value, 3L)) %>%
-  mutate(L4 = dplyr::lag(value, 4L)) %>%
-  mutate(L5 = dplyr::lag(value, 5L)) %>%
-  mutate(H1 = dplyr::lead(value, 1L)) %>%
-  mutate(H2 = dplyr::lead(value, 2L)) %>%
-  mutate(H3 = dplyr::lead(value, 3L)) %>%
-  mutate(H4 = dplyr::lead(value, 4L)) %>%
-  mutate(H5 = dplyr::lead(value, 5L)) %>%
-  pivot_wider(names_from = indicator, values_from = c(value, peak,  trough, L1:L5, H1:H5)) %>% 
-  rename_with(~gsub("value_", "", .))
-```
+# Run a batch of regressions and return a list of lm results
+# formulas: a vector of string formulas to run
+# data: the data frame passed on to lm
+batch_run_regress <- function(formulas, data) {
+  formulas %>% map(~ lm(., data))
+}
 
-```{r}
-data_lp_credit <- data_lp %>% 
-  filter(!is.na(peak_Credit))
-
-fit_lp_credit <- lm(H5_GDP ~ Credit, data = data_lp)
-tidy(fit_lp_credit) 
-summary(fit_lp_credit)
-```
-
-$$ y_{t+h}=\mu_h + \delta_h \text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h} $$
-
-```{r}
-ts_peak_trough <- data_peak_trough %>% 
-  mutate(peak = if_else(is.na(peak), 0, 1)) %>% 
-  mutate(trough = if_else(is.na(trough), 0, 1)) %>% 
-  select(date, indicator, value, peak, trough) %>% 
-  pivot_wider(names_from = indicator, values_from = c(value, peak, trough)) %>% 
-  rename_with(~gsub("value_", "", .)) %>% 
-  ts(data = ., start = c(1999,1), end = c(2019,4), frequency = 4)
-```
-
-```{r}
-# local projection for h period into the future
-# formula: formula in regression; dependent variable must be in the format L(y, h)
-# keep: a vector of independent variable names to keep in the output dataframe
-# ahead: vector 1:h where the forecast of t+h will be computed
-local_projection <- function(formula, keep, ahead, data) {
-  fm <- expr_text(enexpr(formula), width = 200L) 
-
-  map_dfr(ahead, function(.h) {
-    .fm <- gsub("\\bh\\b", -.h, fm)
-    .fit <- dynlm(formula(.fm), data) 
-    .fit %>%
-      tidy(coeftest(., vcov. = vcovHC)) %>% 
-      mutate(ahead = .h, .before = term) %>%
-      mutate(formula = .fm) %>% 
-      filter(term %in% keep) %>% 
-      left_join(
-        glance(.fit) %>% 
-          mutate(ahead = .h) %>% 
-          select(ahead, r.squared, nobs),
-        by = "ahead"
-      )
+# Extract the coefficient of a certain regressor from a batch of regressions
+# lmfits: a list of lm result
+# coef: the variable of interest in the regressors
+batch_extract_coef <- function(lmfits, coef) {
+  coef <- enquo(coef)
+  lmfits %>% imap_dfr(function(fit, i) {
+    tidy(fit) %>% 
+      filter(term == quo_name(coef)) %>% 
+      mutate(index = i) %>% 
+      select(index, estimate) %>% 
+      rename(!!coef := estimate) 
   })
+}
+
+# summarize a batch of lm results into a single table
+# coef: a list of coefficients to keep in the output table
+#       e.g. list('Print-friendly name' = 'Original name') 
+# add_rows: a list of additional rows to add to the output table
+#           e.g. list(Controls = "Yes")
+# vcov: variance-covariance matrix; if null, robust SE is computed
+batch_summarize <- function(lmfits, coefs, add_rows = NULL, vcov = NULL) {
+  lmfits %>% imap(function(fit, index) {
+    label <- as.symbol(sprintf("(%d)", index))
+    tidy(coeftest(fit, vcovHAC)) %>% 
+      filter(term %in% names(coefs)) %>% 
+      mutate(term = as.character(coefs[term])) %>% 
+      mutate(!!label := sprintf("%.3f (%.3f)", estimate, p.value)) %>%  
+      select(term, !!label) %>% 
+      add_row(term = names(add_rows), !!label := as.character(add_rows)) %>% 
+      add_row(term = "$R^2$", !!label := glance(fit) %>% pull(r.squared) %>% format(digits=3)) 
+      # add_row(term = "N", !!label := glance(fit) %>% pull(nobs) %>% format()) 
+  }) %>% reduce(~full_join(.x,.y, by='term'))
 }
 ```
 
+
 ```{r}
-dynlm_gdp_credit_peak <- 
-  local_projection(100*L(GDP,h) ~ peak_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
-                   keep=c("peak_Credit", "(Intercept)"), 
-                   ahead=0:6, data=ts_peak_trough) 
-
-dynlm_cpi_credit_peak <- 
-  local_projection(100*L(CPI,h) ~ peak_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
-                   keep=c("peak_Credit", "(Intercept)"), 
-                   ahead=0:6, data=ts_peak_trough) 
-
-dynlm_gdp_credit_trough <- 
-  local_projection(100*L(GDP,h) ~ trough_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
-                   keep=c("trough_Credit", "(Intercept)"), 
-                   ahead=0:6, data=ts_peak_trough) 
-
-dynlm_cpi_credit_trough <- 
-  local_projection(100*L(CPI,h) ~ trough_Credit + L(GDP,1:2) + L(CPI,0:2) + L(R007,0:2),
-                   keep=c("trough_Credit", "(Intercept)"), 
-                   ahead=0:6, data=ts_peak_trough) 
+# helpers to create formula string with lags
+I <- function(x) paste(quo_name(enquo(x)))
+L <- function(x, n) paste(sprintf("L%d_%s", n, quo_name(enquo(x))), collapse = "+")
+H <- function(x, n) paste(sprintf("H%d_%s", n, quo_name(enquo(x))), collapse = NULL)
+# this returns a vector of strings when lhs is a vector
+EQ <- function(lhs, rhs) sprintf("%s ~ %s", lhs, str_c(rhs, collapse = "+"))
 ```
 
+```{r, results='asis'}
+lmfit_credit_peak <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+
+lmfit_credit_trough <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+
+lmfit_house_peak <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+
+lmfit_house_trough <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+
+lmfit_leverage_peak <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+
+lmfit_leverage_trough <- 
+  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
+  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+```
+
+```{r stargazer, eval=FALSE}
+do.call(stargazer, args = c(
+  lmfit_credit_peak,
+  lmfit_credit_trough,
+  list(
+    #type = "text",
+    type = "latex",
+    label = "tab-credit-peak",
+    title = "Local projection",
+    keep = c("Constant", "Credit"),
+    dep.var.caption = "",
+    #dep.var.labels.include = F,
+    dep.var.labels = c(str_c("h=", 1:6), str_c("$h$=", 1:6)),
+    covariate.labels = c("PEAK", "TROUGH", rep(NA, 10)),
+    omit.stat = c("adj.rsq", "ser", "f")
+  )
+))
+```
+
+
 ```{r}
-patch_1 <- dynlm_gdp_credit_peak %>% 
-  group_by(ahead) %>% 
-  summarise(GDP = sum(estimate)) %>% 
-  inner_join(
-    dynlm_cpi_credit_peak %>% 
-      group_by(ahead) %>% 
-      summarise(CPI = sum(estimate)),
-    by="ahead") %>% 
-  ggplot(aes(x = ahead)) + 
-  geom_line(aes(y = GDP, col = "GDP")) +
-  geom_line(aes(y = CPI/100, col = "CPI")) +
-  geom_hline(yintercept = 0, col = "gray") + 
-  geom_vline(xintercept = 0, col = "gray") + 
-  scale_y_continuous(limits = c(-1.1, 1.1)) +
-  labs(x="Quarters after credit cycle peak", y=NULL) +
-  theme(aspect.ratio = 0.8)
+tbl_credit <- 
+  c(lmfit_credit_peak, lmfit_credit_trough) %>% 
+  batch_summarize(., coefs = list(
+    #'(Intercept)' = '$\\mu$', 
+    'peak_Credit' = '$\\delta^{(P)}$', 
+    'trough_Credit' = '$\\delta^{(T)}$'
+  )) %>% slice(1,3,2) 
 
-patch_2 <- dynlm_gdp_credit_trough %>% 
-  group_by(ahead) %>% 
-  summarise(GDP = sum(estimate)) %>% 
-  inner_join(
-    dynlm_cpi_credit_trough %>% 
-      group_by(ahead) %>% 
-      summarise(CPI = sum(estimate)),
-    by="ahead") %>% 
-  ggplot(aes(x = ahead)) + 
-  geom_line(aes(y = GDP, col = "GDP")) +
-  geom_line(aes(y = CPI/100, col = "CPI")) +
-  geom_hline(yintercept = 0, col = "gray") + 
-  geom_vline(xintercept = 0, col = "gray") + 
-  scale_y_continuous(limits = c(-1.1, 1.1)) +
-  labs(x="Quarters after credit cycle trough", y=NULL)
+tbl_house <- 
+  c(lmfit_house_peak, lmfit_house_trough) %>% 
+  batch_summarize(., coefs = list(
+    'peak_House' = '$\\delta^{(P)}$', 
+    'trough_House' = '$\\delta^{(T)}$'
+  )) %>% slice(1,3,2) 
 
-patch_1 + patch_2 + plot_annotation(
-  caption = "Controls: Lags of output, inflation and interest rates"
-)
+tbl_leverage <- 
+  c(lmfit_leverage_peak, lmfit_leverage_trough) %>% 
+  batch_summarize(., coefs = list(
+    'peak_Leverage' = '$\\delta^{(P)}$', 
+    'trough_Leverage' = '$\\delta^{(T)}$'
+  )) %>% slice(1,3,2) 
+
+bind_rows(tbl_credit, tbl_leverage, tbl_house) %>% 
+  kbl(booktabs = T, escape = F,
+      label = "tab-gdp-after-peak-trough",
+      caption = "Real business cycle dynamics after financial cycle peaks/troughs",
+      col.names = c(" ", str_c("h=",1:6), str_c("h=",1:6))) %>% 
+  pack_rows("Credit cycle", 1,3, hline_after = T) %>%
+  pack_rows("Leverage cycle", 4,6, hline_after = T) %>%
+  pack_rows("Real estate cycle", 7,9, hline_after = T) %>%
+  add_header_above(c(" ", "Quarters after peak"=6, "Quaters after trough"=6)) %>% 
+  add_header_above(c(" ", "Dependent variable: 100 * log GDP gap"=12)) %>% 
+  footnote(general = paste0("Standard errors are heteroskedasticity and ",
+                            "autocorrelation consistent. $p$-values are ", 
+                            "reported in parentheses."), escape = F) %>% 
+  kable_styling(full_width = T) %>% 
+  landscape()
 ```
 
 
