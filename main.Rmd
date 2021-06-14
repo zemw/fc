@@ -31,7 +31,7 @@ ggplot2::theme_set(theme_minimal() + theme(
   legend.position = "bottom"))
 ```
 
-# Introduction
+# Introduction {#intro}
 
 The Global Financial Crisis has prompted a rethink of the role of finance to the
 real economy. Though the view that financial factors generate economic
@@ -51,7 +51,7 @@ financial cycles and how it intereacts with real business cycles
 (Claessens, 2011).
 
 
-# Data and methodology
+# Data and methodology {#data}
 
 ```{r, message=FALSE}
 data_raw <- 
@@ -61,11 +61,19 @@ data_raw <-
 # HP filtered cyclical components
 data_cyl <- 
   read_csv("data/data_vars.csv") %>%
-  mutate(date = yq(date) + months(2)) 
+  mutate(date = yq(date) + months(2)) %>% 
+  # multiple by 100 since log difference means 
+  # the percent deviation from the trend
+  mutate_at(vars(GDP, House, Credit), ~.*100)
+
+# standardize the cycles by standard deviation (mean = 0)
+data_cyl_std <- data_cyl %>%
+  mutate_at(vars(-date), ~ ./sd(.))
+
 ```
 
 
-## Choice of variables
+## Choice of variables {#indicators}
 
 I choose three indicators to characterize the financial cycles: credit, house
 price and credit to GDP ratio. Credit reflects the aggregate claims created by
@@ -114,7 +122,7 @@ inflation. For the purpose of studying financial cycles, it is the nominal
 values that matter. ]
 
 
-```{r raw_data, include=F}
+```{r plot-raw-data, include=F}
 # fig.heighht = 3.5
 data_raw %>%
   filter(year(date) > 1998) %>%
@@ -135,7 +143,7 @@ data_cyl %>%
 ```
 
 
-## Cycle extraction
+## Cycle extraction {#cycle}
 
 There are many methodologies to identify cycles in macroeconomic variables. The
 classical method tracks absolute increase or decrease of economic activities.
@@ -161,12 +169,6 @@ much information. ] Log-transformation is applied to variables that grow
 proportionately to their sizes such as GDP, credit and house prices. The
 magnitude of the cycles are standardized by their standard deviation.
 
-
-```{r}
-# standardize the cycles by standard deviation (mean = 0)
-data_cyl_std <- data_cyl %>%
-  mutate_at(vars(-date), ~ ./sd(.))
-```
 
 @Harding2002's (medium-term) turning-point algorithm is then applied to identify
 peaks and troughs of the cycles. Specifically, the algorithm involves two steps:
@@ -305,9 +307,9 @@ data_peak_trough %>%
 ```
 
 
-# Business and financial cycles: basic features
+# Basic features of financial cycles in China {#features}
 
-## Duration and amplitude
+## Duration and amplitude {#duration}
 
 
 ```{r}
@@ -417,7 +419,7 @@ in China during downturns. These factors make real GDP more stable than
 financial variables. The results here are consistent with conclusions from
 Chinese literature [@Yinan2016; @Taihui2018]. ]
 
-```{r, include=FALSE}
+```{r spectrum-analysis, include=FALSE}
 gg_spec <- function(x, log=FALSE) {
   sp <- spectrum(x, plot=FALSE)
   tb <- tibble(freq = sp$freq, spec = sp$spec) %>%
@@ -429,7 +431,7 @@ gg_spec <- function(x, log=FALSE) {
 ```
 
 
-## Correlation and concordance
+## Correlation and concordance {#correlation}
 
 Figure \ref{fig:corr} shows the correlation between the series. GDP and CPI
 have a strong positive correlation, and both of them are positively correlated
@@ -487,9 +489,39 @@ low concordance with real variables, 55% with GDP, and 39% with CPI. House
 prices have almost half of the cycles overlapped with all other variables,
 though the concordance with interest rate is slightly higher up to 62%.
 
-## Event study around financial cycle peaks
 
-```{r}
+## Event study around financial cycle peaks and troughs {#event}
+
+It is of particular interest how macroeconomic variables behave after 
+a financial cycle indicator peaks or troughs. 
+This section conducts an event study based on the peaks and troughs 
+identified in Section \ref{cycle}.
+
+Figure \ref{fig:event-study-2} traces the average real GDP gaps 
+after a peak or trough in each of the three financial cycle indicators. 
+For comparison, Figure \ref{fig:event-study-2} also shows a reference trend 
+after a "placebo" event (the average of 1000 random draws of 6 consecutive 
+quarters from the dataset). 
+In every scenario, the dynamics of real GDP is visibly different from the 
+"placebo" reference. 
+
+Several observations are worth to remark. 
+(1) Real GDP on average peaks in 4 quarters after a credit cycle peaks, 
+and falls below the trend in 6 quarters; 
+while after a credit cycle troughs, real GDP troughs in 2 quarters, 
+and moves above the trend in 5 quarters. 
+(2) The real economy responds more promptly to real estate cycles. 
+Real GDP peaks in just 2 quarters after real estate price peaks, 
+and troughs almost simultaneously as real estate price troughs. 
+(3) Real GDP has a sluggish response to overall leverage cycles. 
+Real GDP peaks in 4-6 quarters after a leverage cycle peaks, and bottoms 
+in 2-4 quarters after a leverage cycle troughs; 
+however, the real GDP never reverses to the other side of the growth trend 
+after it peaks or troughs, which signals a less consequential response 
+of the real economy. 
+
+
+```{r data-preparation}
 # preparing leads and lags data for event study
 data_leads_lags <- ungroup(data_peak_trough) %>% 
   mutate(name = case_when(
@@ -499,9 +531,9 @@ data_leads_lags <- ungroup(data_peak_trough) %>%
   mutate(peak = if_else(is.na(peak), 0L, 1L)) %>% 
   mutate(trough = if_else(is.na(trough), 0L, 1L)) %>% 
   select(date, name, value, peak, trough) 
-
 # generate leads and lags
-data_leads_lags %<>% 
+# todo: is there a way to automate this?
+data_leads_lags %<>%  # assign back to tibble
   group_by(name) %>% 
   mutate(
     L0 = dplyr::lag(value, 0L),
@@ -522,7 +554,7 @@ data_leads_lags %<>%
   pivot_wider(values_from = c(L0:L6, H1:H6, peak, trough))
 ```
 
-```{r}
+```{r event-study-helpers}
 # calculate summary statistics around a time event
 # condition: condition for the event (in expression)
 # var_names: vector of variable names to summarize
@@ -533,7 +565,7 @@ summarize_around_event <- function(data, condition, var_names) {
             gsub("L", "-", name), 
             gsub("H", "", name)
             ) %>% as.integer
-  }
+    }
   # returns a dataframe with columns:
   # - index: leads and lags around the event
   # - columns: mean of variables of interest
@@ -546,62 +578,105 @@ summarize_around_event <- function(data, condition, var_names) {
     mutate(index = lags_as_integer(index)) %>% 
     group_by(name, index) %>% 
     # todo: is it okay to remove NAs?
-    summarise(value = mean(value)) %>%  
+    summarise(value = mean(value, na.rm = T)) %>%  
     pivot_wider() 
+}
+
+# generate 'placebo' event (no event actually happened) used for reference
+# e.g. randomly draw a sample of 13 consecutive quarters for 1000 times
+#      and calculate the mean. 
+placebo_event <- function(data, var_names, random_draws = 1000) {
+  data %>% 
+    sample_n(random_draws, replace = T) %>% 
+    summarize_around_event(., TRUE, var_names) %>% 
+    rename_with(~str_c(., " placebo"), !index)
 }
 
 # plot the mean of the variables of interest around the event
 # event_df: must be the returned dataframe from summarize_around_event
 # x_lab: label for x-axis
+# y_max: max value of y-axis
 # var_names: not applicable at the moment
-plot_event <- function(event_df, x_lab, var_names = c("GDP", "CPI")) {
-  event_df %>% 
+plot_event <- function(event_df, x_lab = NULL, y_max = 2) {
+  
+    event_df %>% 
     filter(index >=0 ) %>% 
-    ggplot(aes(x = index)) +
-    geom_line(aes(y = GDP*100, col="GDP")) +
-    geom_line(aes(y = CPI, col="CPI")) +
+    pivot_longer(!index) %>% 
+    ggplot(aes(index, value, col=name, linetype=name)) + 
+    geom_line() +
     geom_vline(xintercept = 0, col ="grey") +
     geom_hline(yintercept = 0, col = "grey") + 
-    scale_y_continuous(limits = c(-2, 2)) +
+    scale_y_continuous(limits = c(-y_max, y_max)) +
     labs(x = x_lab, y = NULL) +
     theme(aspect.ratio = 0.8)
 }
+
 ```
 
-```{r event-credit, fig.cap="Dynamics around credit cycle peaks and troughs"}
+```{r event-study-1, include=F, eval=F, fig.cap="Dynamics around peaks and troughs", fig.asp = 1.2}
 (data_leads_lags %>% 
   summarize_around_event(., peak_Credit == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after credit cycle peak"))  +
+  plot_event(., "Quarters after credit peak",1)  
+) +
 (data_leads_lags %>% 
   summarize_around_event(., trough_Credit == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after credit cycle trough"))   
-```
-
-```{r event-house, fig.cap="Dynamics around real estate cycle peaks and troughs"}
+  plot_event(., "Quarters after credit trough",1)  
+) +
 (data_leads_lags %>% 
   summarize_around_event(., peak_House == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after real estate cycle peak"))  +
+  plot_event(., "Quarters after real estate peak", 1)
+)  +
 (data_leads_lags %>% 
   summarize_around_event(., trough_House == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after real estate cycle trough"))   
-```
-
-```{r event-leverage, fig.cap="Dynamics around leverage cycle peaks and troughs"}
+  plot_event(., "Quarters after real estate trough", 1)
+) +   
 (data_leads_lags %>% 
   summarize_around_event(., peak_Leverage == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after leverage cycle peak"))  +
+  plot_event(., "Quarters after leverage cycle peak", 2)
+)  +
 (data_leads_lags %>% 
   summarize_around_event(., trough_Leverage == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after leverage cycle trough"))   
+  plot_event(., "Quarters after leverage cycle trough", 2)
+) + 
+plot_layout(ncol = 2, guides = "collect")
 ```
 
-# Dynamic relations
+```{r event-study-2, fig.cap="Real GDP dynamics around financial cycle peaks and troughs", fig.asp = 1.2}
+(summarize_around_event(data_leads_lags, peak_Credit == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after credit peak", 1)
+) +
+(summarize_around_event(data_leads_lags, trough_Credit == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after credit trough", 1)
+) +
+(summarize_around_event(data_leads_lags, peak_House == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after real estate peak", 1)
+) +
+  (summarize_around_event(data_leads_lags, trough_House == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after teal estate trough", 1)
+) +
+  (summarize_around_event(data_leads_lags, peak_Leverage == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after leverage cycle peak", 2)
+) +
+  (summarize_around_event(data_leads_lags, trough_Leverage == 1L, "GDP") %>% 
+  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
+  plot_event(., "Quarters after leverage cycle trough", 2)
+) +
+plot_layout(ncol = 2, guides = "collect")
+```
+
+
+# Financial cycles and business cycles {#regress}
 
 ## Local projection
 
 $$ y_{t+h}=\mu_h + \delta_h\text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h} $$
 
-```{r}
+```{r regression-helpers}
 # Run a batch of regressions and return a list of lm results
 # formulas: a vector of string formulas to run
 # data: the data frame passed on to lm
@@ -642,65 +717,70 @@ batch_summarize <- function(lmfits, coefs, add_rows = NULL, vcov = NULL) {
       # add_row(term = "N", !!label := glance(fit) %>% pull(nobs) %>% format()) 
   }) %>% reduce(~full_join(.x,.y, by='term'))
 }
-```
 
-
-```{r}
-# helpers to create formula string with lags
+# helpers to create formula strings with lags
+# I: converts a single symbol to string
+# L: creates lagged variables
+# H: creates leaded variables
 I <- function(x) paste(quo_name(enquo(x)))
 L <- function(x, n) paste(sprintf("L%d_%s", n, quo_name(enquo(x))), collapse = "+")
 H <- function(x, n) paste(sprintf("H%d_%s", n, quo_name(enquo(x))), collapse = NULL)
-# this returns a vector of strings when lhs is a vector
+# creates regression equation (in string)
+# note this returns a vector of strings when lhs is a vector
 EQ <- function(lhs, rhs) sprintf("%s ~ %s", lhs, str_c(rhs, collapse = "+"))
 ```
 
-```{r, results='asis'}
+```{r run-local-projection}
 lmfit_credit_peak <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+  batch_run_regress(., data = data_leads_lags)
 
 lmfit_credit_trough <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+  batch_run_regress(., data = data_leads_lags)
 
 lmfit_house_peak <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+  batch_run_regress(., data = data_leads_lags)
 
 lmfit_house_trough <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+  batch_run_regress(., data = data_leads_lags)
 
 lmfit_leverage_peak <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
+  batch_run_regress(., data = data_leads_lags)
 
 lmfit_leverage_trough <- 
   EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags %>% mutate_at(vars(contains("GDP")), ~.*100))
-```
-
-```{r stargazer, eval=FALSE}
-do.call(stargazer, args = c(
-  lmfit_credit_peak,
-  lmfit_credit_trough,
-  list(
-    #type = "text",
-    type = "latex",
-    label = "tab-credit-peak",
-    title = "Local projection",
-    keep = c("Constant", "Credit"),
-    dep.var.caption = "",
-    #dep.var.labels.include = F,
-    dep.var.labels = c(str_c("h=", 1:6), str_c("$h$=", 1:6)),
-    covariate.labels = c("PEAK", "TROUGH", rep(NA, 10)),
-    omit.stat = c("adj.rsq", "ser", "f")
-  )
-))
+  batch_run_regress(., data = data_leads_lags)
 ```
 
 
-```{r}
+
+
+```{r stargazer, include=FALSE}
+# # stargazer is a great package, but I don't use it this time
+# do.call(stargazer, args = c(
+#   lmfit_credit_peak,
+#   lmfit_credit_trough,
+#   list(
+#     #type = "text",
+#     type = "latex",
+#     label = "tab-credit-peak",
+#     title = "Local projection",
+#     keep = c("Constant", "Credit"),
+#     dep.var.caption = "",
+#     #dep.var.labels.include = F,
+#     dep.var.labels = c(str_c("h=", 1:6), str_c("h=", 1:6)),
+#     covariate.labels = c("PEAK", "TROUGH", rep(NA, 10)),
+#     omit.stat = c("adj.rsq", "ser", "f")
+#   )
+# ))
+```
+
+
+```{r produce-lp-table}
 tbl_credit <- 
   c(lmfit_credit_peak, lmfit_credit_trough) %>% 
   batch_summarize(., coefs = list(
@@ -732,7 +812,7 @@ bind_rows(tbl_credit, tbl_leverage, tbl_house) %>%
   pack_rows("Leverage cycle", 4,6, hline_after = T) %>%
   pack_rows("Real estate cycle", 7,9, hline_after = T) %>%
   add_header_above(c(" ", "Quarters after peak"=6, "Quaters after trough"=6)) %>% 
-  add_header_above(c(" ", "Dependent variable: 100 * log GDP gap"=12)) %>% 
+  add_header_above(c(" ", "Dependent variable: 100 \\times log GDP gap"=12)) %>% 
   footnote(general = paste0("Standard errors are heteroskedasticity and ",
                             "autocorrelation consistent. $p$-values are ", 
                             "reported in parentheses."), escape = F) %>% 
