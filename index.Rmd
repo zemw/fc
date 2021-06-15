@@ -19,5 +19,6 @@ bibliography: refs.bib
 csl: apa_7ed.csl
 # biblio-style: apalike
 link-citations: yes
+nocite: '@*'
 site: bookdown::bookdown_site
 ---
