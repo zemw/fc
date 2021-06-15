@@ -23,6 +23,7 @@ library(broom)
 library(lmtest)
 library(sandwich)
 library(stargazer)
+library(latex2exp)
 ```
 
 ```{r plot-setup, include=FALSE}
@@ -390,8 +391,8 @@ kbl(stat_dur_amp, digits = 2, booktabs = T,
   kable_styling(full_width = F)
 ```
 
-Based on the identified turning points in Section \ref{cycle-extraction}, I
-calculated the duration and amplitude of the cycles for each series (Table
+Based on the identified turning points in Section \ref{cycle}, 
+I calculated the duration and amplitude of the cycles for each series (Table
 \ref{tab:dur-amp}). The duration of an upturn (downturn) is defined as the
 quarters from a trough (peak) to a peak (trough). The amplitude of an upturn
 (downturn) is defined as the largest positive (negative) deviation from the
@@ -408,7 +409,7 @@ GDP and credit, the downturns are more severe than the upturns (more pronounced
 amplitude). While for houses, price levels, and interest rates, the amplitude of
 troughs are relatively mild compared to peaks. ^[The numbers here demonstrate
 drastically different characteristics from financial or business cycles
-concluded from developed economies [@Claessens2012;@Borio2014]. In the later
+concluded from developed economies [@Claessens2012; @Borio2014]. In the later
 case, financial variables generally have longer cycles than real variables, and
 upturns are typically more pronounced in magnitude than downturns. The
 difference is partly due to the different methodology adopted in this paper. The
@@ -543,6 +544,7 @@ data_leads_lags %<>%  # assign back to tibble
     L4 = dplyr::lag(value, 4L),
     L5 = dplyr::lag(value, 5L),
     L6 = dplyr::lag(value, 6L),
+    H0 = dplyr::lead(value, 0L), # duplicated values L0
     H1 = dplyr::lead(value, 1L),
     H2 = dplyr::lead(value, 2L),
     H3 = dplyr::lead(value, 3L),
@@ -551,7 +553,7 @@ data_leads_lags %<>%  # assign back to tibble
     H6 = dplyr::lead(value, 6L)
   ) %>% 
   select(!value) %>% 
-  pivot_wider(values_from = c(L0:L6, H1:H6, peak, trough))
+  pivot_wider(values_from = c(L0:L6, H0:H6, peak, trough))
 ```
 
 ```{r event-study-helpers}
@@ -641,7 +643,7 @@ plot_event <- function(event_df, x_lab = NULL, y_max = 2) {
 plot_layout(ncol = 2, guides = "collect")
 ```
 
-```{r event-study-2, fig.cap="Real GDP dynamics around financial cycle peaks and troughs", fig.asp = 1.2}
+```{r event-study-2, fig.cap="Real GDP after financial cycle peaks and troughs", fig.asp = 1.2}
 (summarize_around_event(data_leads_lags, peak_Credit == 1L, "GDP") %>% 
   left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
   plot_event(., "Quarters after credit peak", 1)
@@ -654,15 +656,15 @@ plot_layout(ncol = 2, guides = "collect")
   left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
   plot_event(., "Quarters after real estate peak", 1)
 ) +
-  (summarize_around_event(data_leads_lags, trough_House == 1L, "GDP") %>% 
+(summarize_around_event(data_leads_lags, trough_House == 1L, "GDP") %>% 
   left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after teal estate trough", 1)
+  plot_event(., "Quarters after real estate trough", 1)
 ) +
-  (summarize_around_event(data_leads_lags, peak_Leverage == 1L, "GDP") %>% 
+(summarize_around_event(data_leads_lags, peak_Leverage == 1L, "GDP") %>% 
   left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
   plot_event(., "Quarters after leverage cycle peak", 2)
 ) +
-  (summarize_around_event(data_leads_lags, trough_Leverage == 1L, "GDP") %>% 
+(summarize_around_event(data_leads_lags, trough_Leverage == 1L, "GDP") %>% 
   left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
   plot_event(., "Quarters after leverage cycle trough", 2)
 ) +
@@ -672,9 +674,105 @@ plot_layout(ncol = 2, guides = "collect")
 
 # Financial cycles and business cycles {#regress}
 
-## Local projection
+## Aftermath of financial cycle peaks and troughs
 
-$$ y_{t+h}=\mu_h + \delta_h\text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h} $$
+To examine the predictability of financial cycle peaks and troughs for 
+subsequent real GDP more formally, this section estimates a local projection 
+following @jorda2005, which allows including controls flexibly.
+I estimate the following specification for horizons $h=1,\dots,6$:
+
+\begin{equation}
+\label{eq:lp-peak}
+y_{t+h} = \mu_h + \delta_h^{(P)} \text{PEAK}_t + \Phi(L)X_t +\epsilon_{t+h}, 
+\end{equation}
+
+\noindent 
+where $\text{PEAK}_t$ is a dummy variable which equal to $1$ when time $t$ is 
+the peak of a particular time series, specifically, one of credit, real estate 
+price, and leverage ratio. 
+$y_{t+h}$ is the real output gap $h$ periods ahead of $t$. 
+
+Equation (\ref{eq:lp-peak}) also controls for several macroeconomic variables,
+captured in $X_t$, including lagged real output, inflation, interest rates,
+as well as lagged credit, real estate price and leverage ratios.
+I include three period lags in all estimations, though the results are 
+not sensitive to the length of lags. 
+
+The parameter of interest is $\delta_h^{(P)}$, which captures the response of 
+subsequent real GDP gaps after financial cycle peaks. 
+Note that the linkage between financial cycles and real business cycles could 
+come from two sources. First, it is possible that a contraction of financial 
+cycles starves financing resources from the real economy, and thus cause a 
+downturn in real business cycle. 
+Second, it is also possible that financial agents anticipate a real economy 
+downturn in the future and withdraw financial resources beforehand, thus 
+financial indicators, both credit and asset prices, usually exhibit 
+forward-looking characters.  
+
+Therefore, the estimation in this section does not have a causal interpretation, 
+but provides an average predicted path of subsequent real output gaps following 
+a peak or trough of financial cycle.
+Given specification (\ref{eq:lp-peak}), the average path of real GDP gap after 
+a peak of financial cycle is captured by $\mu_h + \delta_h^{(P)}$;
+while $\delta_h^{(P)}$ spells the difference between the path after financial
+cycle peaks and the average path in general cases. 
+
+\begin{equation}
+\label{eq:lp-trough}
+y_{t+h} = \mu_h + \delta_h^{(T)} \text{TROUGH}_t + \Phi(L)X_t +\epsilon_{t+h}. 
+\end{equation}
+
+Similarly, equation (\ref{eq:lp-trough}) is estimated for troughs. 
+The average path of real GDP gaps following financial cycle troughs is  
+captured by $\mu_h + \delta_h^{(T)}$.
+
+Figure \ref{fig:lp-coef} reproduces the event study with the coefficients 
+estimated from Equation (\ref{eq:lp-peak}) and (\ref{eq:lp-trough}). 
+The solid lines depict the average paths after financial peaks or troughs 
+($\mu_h + \delta_h$); and the dashed lines are the average paths without 
+financial cycle disruptions ($\mu_h$). 
+Table \ref{tab:lp-table} presents the tabular version of the regression results. 
+Standard errors are in Newey-West.
+^[Equation (\ref{eq:lp-peak}) and (\ref{eq:lp-trough}) include lags of dependent 
+variables. As suggested by @olea2020, it is sufficient to use heteroskedasticity
+consistent standard errors in lag-augmented local projections. This paper still 
+use heteroskedasticity and autocorrelation consistent standard errors as most
+local projection literatures do. ] 
+
+The average paths in Figure \ref{fig:lp-coef} do exhibit different characteristics 
+after controls from the unconditional mean in Figure \ref{fig:event-study-2}.
+First, real GDP falls below the growth trend shortly after (in one quarter) 
+peaks in any of the three financial cycle measures.
+Real GDP suffers a severe recessionary gap 6 quarters after credit cycle peaks.
+The coefficient of $h=6$ reported in Table \ref{tab:lp-table} shows highly
+significance. This suggest contractionary movements of credit presage strong 
+contraction in real business cycles.
+Peaks of real estate cycles also signal slowdown of real output growth, but 
+the effect is not as strong as credit cycles. 
+
+Second, soon after credit or real estate price troughs and begins to expand, 
+real GDP moves above the trend and the expansionary gap remains thereafter. 
+The coefficients of both credit and real estate cycles for $h=2,\dots,5$ are
+highly significant. 
+This evidence shows that real business cycle is more responsive to financial 
+expansion than contraction, which is not surprising for fast-growing economies
+like China. 
+
+Third, the effects of leverage cycles are the weakest among the three. 
+The dynamics after leverage ratio peaks or troughs shows ambiguity. 
+After the peaks, real GDP moves below the trend for a short period of time, 
+and back above the trend in just 3 quarters. 
+After the troughs, real GDP remains below the trend for 3 quarters before 
+starting to recover. 
+These evidence provides little support to the argument that leverage ratio 
+is the key to economic stability -- if the expansion of credit or asset prices 
+are not accompanied by rising leverage ratio, that is real output grows 
+proportionally, it would not pose a thread to economic stability. 
+On the contrary, the findings here suggest the dynamics of credit and real 
+estate prices presage the dynamics of real output, even if leverage ratios 
+are controlled. On the other hand, leverage ratio itself has the weakest 
+predictability for subsequent real output levels. 
+
 
 ```{r regression-helpers}
 # Run a batch of regressions and return a list of lm results
@@ -692,7 +790,7 @@ batch_extract_coef <- function(lmfits, coef) {
   lmfits %>% imap_dfr(function(fit, i) {
     tidy(fit) %>% 
       filter(term == quo_name(coef)) %>% 
-      mutate(index = i) %>% 
+      mutate(index = i - 1) %>% # starts from 0 
       select(index, estimate) %>% 
       rename(!!coef := estimate) 
   })
@@ -707,7 +805,7 @@ batch_extract_coef <- function(lmfits, coef) {
 batch_summarize <- function(lmfits, coefs, add_rows = NULL, vcov = NULL) {
   lmfits %>% imap(function(fit, index) {
     label <- as.symbol(sprintf("(%d)", index))
-    tidy(coeftest(fit, vcovHAC)) %>% 
+    tidy(coeftest(fit, NeweyWest)) %>% 
       filter(term %in% names(coefs)) %>% 
       mutate(term = as.character(coefs[term])) %>% 
       mutate(!!label := sprintf("%.3f (%.3f)", estimate, p.value)) %>%  
@@ -731,33 +829,70 @@ EQ <- function(lhs, rhs) sprintf("%s ~ %s", lhs, str_c(rhs, collapse = "+"))
 ```
 
 ```{r run-local-projection}
+# controls <- c(L(GDP, 1:2), L(CPI, 0:2), L(IR, 0:2))
+# todo: should we include a full list of controls?
+controls <- c(L(GDP, 1:2), L(CPI, 0:2), L(IR, 0:2),
+              L(Credit, 0:2), L(House, 0:2), L(Leverage, 0:2))
+
 lmfit_credit_peak <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_Credit), controls)) %>% 
+  batch_run_regress(formulas = ., data = data_leads_lags)
 
 lmfit_credit_trough <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Credit), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_Credit), controls)) %>% 
+  batch_run_regress(formula = ., data = data_leads_lags)
 
 lmfit_house_peak <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_House), controls)) %>% 
+  batch_run_regress(formulas = ., data = data_leads_lags)
 
 lmfit_house_trough <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_House), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_House), controls)) %>% 
+  batch_run_regress(formulas = ., data = data_leads_lags)
 
 lmfit_leverage_peak <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(peak_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_Leverage), controls)) %>% 
+  batch_run_regress(formulas = ., data = data_leads_lags)
 
 lmfit_leverage_trough <- 
-  EQ(lhs = H(GDP, 1:6), rhs = c(I(trough_Leverage), L(GDP, 0:2), L(CPI, 0:2), L(IR, 0:2))) %>% 
-  batch_run_regress(., data = data_leads_lags)
+  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_Leverage), controls)) %>% 
+  batch_run_regress(formulas = ., data = data_leads_lags)
 ```
 
-
-
+```{r lp-coef, fig.cap="Real GDP gaps after financial cycle peaks and troughs, with controls", fig.asp=1.2}
+# a helper function to plot the coefficients from regression
+# lmfit: the lm result
+# coef: the symbol of regressor whose coeffient is of interest
+# x_lab: label for x-axis
+# y_max: max value for y-axis
+plot_lp_coef <- function(lmfit, coef, x_lab = NULL, y_max = 2) {
+  full_join(
+    batch_extract_coef(lmfit, {{ coef }}), 
+    batch_extract_coef(lmfit, `(Intercept)`), 
+    by = "index"
+    ) %>% 
+    mutate(treated = {{ coef }} + `(Intercept)`) %>% 
+    select(index, treated, untreated =  `(Intercept)`) %>% 
+    pivot_longer(!index) %>% 
+    ggplot(aes(index, value, col=name, linetype=name)) + 
+    geom_line() + 
+    geom_vline(xintercept = 0, col ="grey") +
+    geom_hline(yintercept = 0, col = "grey") + 
+    scale_y_continuous(limits = c(-y_max, y_max)) +
+    scale_color_discrete(guide = "none") +
+    scale_linetype_discrete(labels = unname(TeX(c("$\\delta_h+\\mu_h", "$\\mu_h")))) +
+    labs(x = x_lab, y = NULL) +
+    theme(aspect.ratio = 0.8)
+}
+# patch all six graphs together
+plot_lp_coef(lmfit_credit_peak, peak_Credit, "Quarters after credit peak") + 
+plot_lp_coef(lmfit_credit_trough, trough_Credit, "Quarters after credit trough") +
+plot_lp_coef(lmfit_house_peak, peak_House, "Quarters after real estate peak") +
+plot_lp_coef(lmfit_house_trough, trough_House, "Quarters after real estate trough") +
+plot_lp_coef(lmfit_leverage_peak, peak_Leverage, "Quarters after leverage cycle peak") +
+plot_lp_coef(lmfit_leverage_trough, trough_Leverage, "Quarters after leverage cycle trough") +
+plot_layout(ncol = 2, guides = "collect")
+```
 
 ```{r stargazer, include=FALSE}
 # # stargazer is a great package, but I don't use it this time
@@ -780,39 +915,39 @@ lmfit_leverage_trough <-
 ```
 
 
-```{r produce-lp-table}
+```{r lp-table}
 tbl_credit <- 
   c(lmfit_credit_peak, lmfit_credit_trough) %>% 
   batch_summarize(., coefs = list(
-    #'(Intercept)' = '$\\mu$', 
+    '(Intercept)' = '$\\mu$', 
     'peak_Credit' = '$\\delta^{(P)}$', 
     'trough_Credit' = '$\\delta^{(T)}$'
-  )) %>% slice(1,3,2) 
+  )) %>% slice(1,2,4,3) 
 
 tbl_house <- 
   c(lmfit_house_peak, lmfit_house_trough) %>% 
   batch_summarize(., coefs = list(
+    '(Intercept)' = '$\\mu$', 
     'peak_House' = '$\\delta^{(P)}$', 
     'trough_House' = '$\\delta^{(T)}$'
-  )) %>% slice(1,3,2) 
+  )) %>% slice(1,2,4,3) 
 
 tbl_leverage <- 
   c(lmfit_leverage_peak, lmfit_leverage_trough) %>% 
   batch_summarize(., coefs = list(
+    '(Intercept)' = '$\\mu$', 
     'peak_Leverage' = '$\\delta^{(P)}$', 
     'trough_Leverage' = '$\\delta^{(T)}$'
-  )) %>% slice(1,3,2) 
+  )) %>% slice(1,2,4,3) 
 
-bind_rows(tbl_credit, tbl_leverage, tbl_house) %>% 
-  kbl(booktabs = T, escape = F,
-      label = "tab-gdp-after-peak-trough",
-      caption = "Real business cycle dynamics after financial cycle peaks/troughs",
-      col.names = c(" ", str_c("h=",1:6), str_c("h=",1:6))) %>% 
-  pack_rows("Credit cycle", 1,3, hline_after = T) %>%
-  pack_rows("Leverage cycle", 4,6, hline_after = T) %>%
-  pack_rows("Real estate cycle", 7,9, hline_after = T) %>%
-  add_header_above(c(" ", "Quarters after peak"=6, "Quaters after trough"=6)) %>% 
-  add_header_above(c(" ", "Dependent variable: 100 \\times log GDP gap"=12)) %>% 
+bind_rows(tbl_credit, tbl_house, tbl_leverage) %>% 
+  kbl(booktabs = T, escape = F, align = 'c',
+      caption = "Real GDP gaps after financial cycle peaks and troughs, with controls",
+      col.names = c(" ", str_c("h=",0:6), str_c("h=",0:6))) %>% 
+  pack_rows(index = c("Credit cycle"=4, "Real estate cycle"=4, "Leverage cycle"=4),
+            hline_after = TRUE) %>%
+  add_header_above(c(" ", "Quarters after peak"=7, "Quarters after trough"=7)) %>% 
+  add_header_above(c(" ", "Dependent variable: 100 × log GDP gap"=14)) %>% 
   footnote(general = paste0("Standard errors are heteroskedasticity and ",
                             "autocorrelation consistent. $p$-values are ", 
                             "reported in parentheses."), escape = F) %>% 
