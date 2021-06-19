@@ -82,10 +82,19 @@ ceic_load <- function(file, parallel = FALSE) {
       }
     }, 
     
+    # return all series in the dataset
+    fetch_all = function(output = 'tbl') {
+      mts <- .series %>% reduce(~merge(.x, .y))
+      lbs <- .metadata %>% pull(seriesName)
+      tbl <- data.frame(.= zoo::index(mts), mts) %>% as_tibble
+      names(tbl) <- make.unique(c("date", lbs))
+      tbl
+    }, 
+    
     # fetch time series by id or name
     fetch = function(seriesId = NULL, 
                      keyword = NULL, 
-                     output = c('df', 'xts'), 
+                     output = c('tbl', 'xts'), 
                      rename_cols = NULL) {
       
       x <- NULL # series to be returned
@@ -108,7 +117,7 @@ ceic_load <- function(file, parallel = FALSE) {
       }
       
       output <- match.arg(output)
-      if (output == 'df') {
+      if (output == 'tbl') {
         data.frame(date=index(x), x) %>% as_tibble
       } else {
         x
