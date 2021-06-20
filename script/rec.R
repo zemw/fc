@@ -1,5 +1,42 @@
+
 source("script/summary.R")
-# rm(list = ls(all = TRUE))
+source("script/ceic.R")
+
+ceic_hdl <- ceic_load("data/raw.m")
+data_raw <- ceic_hdl$fetch_all() 
+
+names(data_raw) <- c("date",
+                     "GDP",
+                     "CPI",
+                     "Credit",
+                     "Credit/GDP",
+                     "Leverage",
+                     "RR",
+                     "CBSP")
+
+# first-order difference
+data_diff <- data_raw %>% 
+  mutate(GDP = diff_vec(GDP, log = T)*100) %>% 
+  mutate(Credit = diff_vec(Credit, log = T)*100) %>% 
+  mutate(House = diff_vec(CBSP, log = T)*100) %>% 
+  mutate(Leverage = diff_vec(Leverage)) %>% 
+  mutate(CPI = diff_vec(CPI)) %>% 
+  #mutate(RR = diff_vec(RR)) %>% 
+  select(-`Credit/GDP`, -CBSP) %>% 
+  drop_na()
+
+data_bhp <- data_raw %>% drop_na() %>%
+  mutate(GDP = 100*BoostedHP(log(GDP)) %$% cycle) %>%
+  mutate(CPI = BoostedHP(CPI) %$% cycle) %>%
+  mutate(Credit = 100*BoostedHP(log(Credit)) %$% cycle) %>%
+  mutate(`Credit/GDP` = BoostedHP(`Credit/GDP`) %$% cycle) %>%
+  mutate(Leverage = BoostedHP(Leverage) %$% cycle) %>%
+  mutate(House = 100*BoostedHP(log(CBSP)) %$% cycle) %>% 
+  select(-`Credit/GDP`, -CBSP) 
+
+# moving average of last 2 years
+data_ma2 <- data_bhp %>% 
+  mutate_at(vars(!date), ~slide_dbl(.x, mean, .before = 7, .complete = T)) 
 
 # load recession dummies
 data_rec <- 
@@ -7,10 +44,11 @@ data_rec <-
   select(date = DATE, rec = CHNREC) %>% 
   mutate(rec = as.integer(rec)) %>% 
   mutate(date = ymd(date) + months(2)) %>% 
-  right_join(data_diff, by ="date") 
+  right_join(data_ma2, by ="date") %>% 
+  filter(year(date) > 1998, year(date) < 2020)
 
 # plot graph with shaded recession areas
-plot_rec_1 <-
+plot_rec <-
   data_rec %>%
   pivot_longer(3:8) %>%
   ggplot(aes(date, value)) +
@@ -30,7 +68,7 @@ plot_rec_1 <-
   scale_fill_brewer(palette = 2) 
 
 # plot with peaks and troughs
-plot_rec_2 <-
+plot_rec_pt <-
   data_peak_trough %>%
   left_join(data_rec %>% select(date, rec), by = "date") %>%
   ggplot(aes(x = date)) +
@@ -52,29 +90,30 @@ plot_rec_2 <-
   facet_wrap( ~ indicator, scales = "free_y") +
   labs(x = NULL, y = NULL)
 
-# data with lags
-data_rec %<>% 
-  pivot_longer(!date) %>% 
-  group_by(name) %>% 
-  arrange(name) %>% 
-  # generate lags L1, L2, ...
-  mutate(map_dfc(1:5, ~ dplyr::lag(value, .))) %>% 
-  rename_with(~gsub("...", "L", .), contains("...")) %>% 
-  pivot_wider(values_from = 3:8) %>% 
-  rename_with(~gsub("value_", "", .), contains("value")) %>% 
-  filter(year(date) > 1998, year(date) < 2020)
+# # generate data with lags
+# data_rec %<>% 
+#   pivot_longer(!date) %>% 
+#   group_by(name) %>% 
+#   arrange(name) %>% 
+#   # generate lags L1, L2, L3, L4
+#   mutate(map_dfc(1:4, ~ dplyr::lag(value, .))) %>% 
+#   rename_with(~gsub("...", "L", .), contains("...")) %>% 
+#   pivot_wider(values_from = 3:7) %>% 
+#   rename_with(~gsub("value_", "", .), contains("value")) %>% 
+#   filter(year(date) < 2020) %>% 
+#   drop_na()
 
 # ----------------------------------------------------------------------------
 # Plot ROC (Receiver Operating Characteristic)
 # ----------------------------------------------------------------------------
 
-fit_rec_house <- lm(rec ~ L1_House + L2_House + L3_House + L4_House, data_rec)  
-fit_rec_credit <- lm(rec ~ L1_Credit + L2_Credit + L3_Credit + L4_Credit, data_rec)
-fit_rec_leverage <- lm(rec ~ L1_Leverage + L2_Leverage + L3_Leverage + L4_Leverage, data_rec)
+fit_rec_credit <- lm(rec ~ Credit, data_rec)
+fit_rec_house <- lm(rec ~ House, data_rec)  
+fit_rec_leverage <- lm(rec ~ Leverage, data_rec)
 
-roc_house <- roc(data_rec$rec, fit_rec_house$fitted.values, plot = T)
-roc_credit <- roc(data_rec$rec, fit_rec_credit$fitted.values, plot = T)
-roc_leverage <- roc(data_rec$rec, fit_rec_leverage$fitted.values, plot = T)
+roc_house <- roc(data_rec$rec, fit_rec_house$fitted.values, plot = F)
+roc_credit <- roc(data_rec$rec, fit_rec_credit$fitted.values, plot = F)
+roc_leverage <- roc(data_rec$rec, fit_rec_leverage$fitted.values, plot = F)
 
 plot_roc <- 
   bind_cols(
@@ -95,24 +134,32 @@ plot_roc <-
 # Regression models
 # ----------------------------------------------------------------------------
 
-fit_rec_base <- lm(rec ~ L1_GDP + L2_GDP + L3_GDP + L4_GDP + L1_CPI + L2_CPI + L3_CPI + L4_CPI + L1_RR + L2_RR + L3_RR + L4_RR, data_rec) 
-fit_rec_house <- lm(rec ~ L1_House + L2_House + L3_House + L4_House + L1_GDP + L2_GDP + L3_GDP + L4_GDP + L1_CPI + L2_CPI + L3_CPI + L4_CPI + L1_RR + L2_RR + L3_RR + L4_RR, data_rec) 
-fit_rec_credit <- lm(rec ~ L1_Credit + L2_Credit + L3_Credit + L4_Credit + L1_GDP + L2_GDP + L3_GDP + L4_GDP + L1_CPI + L2_CPI + L3_CPI + L4_CPI + L1_RR + L2_RR + L3_RR + L4_RR, data_rec) 
-fit_rec_leverage <- lm(rec ~ L1_Leverage + L2_Leverage + L3_Leverage + L4_Leverage + L1_GDP + L2_GDP + L3_GDP + L4_GDP + L1_CPI + L2_CPI + L3_CPI + L4_CPI + L1_RR + L2_RR + L3_RR + L4_RR, data_rec) 
+lm_rec_base <- lm(rec ~ GDP + CPI + RR, data_rec) 
+lm_rec_house <- lm(rec ~ House + GDP + CPI + RR, data_rec) 
+lm_rec_credit <- lm(rec ~ Credit + GDP + CPI + RR, data_rec) 
+lm_rec_leverage <- lm(rec ~ Leverage + GDP + CPI + RR, data_rec) 
 
-table_rec <-
+probit_rec_base <- glm(rec ~ GDP + CPI + RR, binomial(link = "probit"), data_rec) 
+probit_rec_house <- glm(rec ~ House + GDP + CPI + RR, binomial(link = "probit"), data_rec) 
+probit_rec_credit <- glm(rec ~ Credit + GDP + CPI + RR, binomial(link = "probit"), data_rec) 
+probit_rec_leverage <- glm(rec ~ Leverage + GDP + CPI + RR, binomial(link = "probit"), data_rec) 
+
+# generate report table
+table_rec <- 
   smart_summary(
-    fit_rec_base,
-    fit_rec_credit,
-    fit_rec_house,
-    fit_rec_leverage,
-    coefs = c("GDP", "Credit", "House", "Leverage"),
-    rename = ~ gsub("_", ".", .),
-    add_lines = list(Controls = "Yes"),
-    add_stats = list(AUC = ~ auc(data_rec$rec, .x$fitted.values))
-  ) 
-
-# probit_rec_base <- glm(rec ~ L1_GDP + L2_GDP + L3_GDP + L4_GDP + L1_CPI + L2_CPI + L3_CPI + L4_CPI + L1_RR + L2_RR + L3_RR + L4_RR, binomial(link = "probit"), data_rec) 
+    lm_rec_base,
+    lm_rec_credit,
+    lm_rec_house,
+    lm_rec_leverage,
+    probit_rec_base,
+    probit_rec_credit,
+    probit_rec_house,
+    probit_rec_leverage,
+    excls = c("Intercept"),
+    add_stats = list(AUROC = ~ auc(data_rec$rec, .x$fitted.values))
+    ) %>% 
+  rename("2-year moving average" = ".") %>% 
+  slice(4:6, 1:3, 7:9)
 
 
 
