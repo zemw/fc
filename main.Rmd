@@ -24,6 +24,8 @@ library(lmtest)
 library(sandwich)
 library(stargazer)
 library(latex2exp)
+library(bHP)
+library(pROC)
 ```
 
 ```{r plot-setup, include=FALSE}
@@ -1061,6 +1063,130 @@ in 2014, most cities remove the limits on the number of homes one can buy. The
 importance of house price attenuated since 2016, as the authority adopted the
 "long-term mechanism" for real estate regulation.
 
+
+## Recession prediction
+
+```{r, include=FALSE}
+source("script/rec.R")
+```
+
+The last experiment is to test the predictive power of financial cycles for 
+recessions. Financial indicators have been found to have strong predictive 
+power for real economic outcomes in developed economies and are widely adopted 
+in various economic leading indicators. 
+This section is set to test the validity of various financial predictors 
+in the context of China. 
+
+There is no official classification of recessions in China.
+In this study, I use the OECD based recession indicator.
+^[Retrieved from Federal Reserve Bank of St. Louis, OECD based Recession Indicators
+for China from the Period following the Peak through the Trough [CHNRECD];
+https://fred.stlouisfed.org/series/CHNRECD. ]
+The OECD CLI system is based on "growth cycle" approach, and a recession is 
+defined as the period following the peak through the trough.
+^[More details on OECD CLI system: OECD Composite Leading Indicators, 
+"Composite Leading Indicators: Reference Turning Points and Component Series", 
+http://www.oecd.org/std/leading-indicators/oecdcompositeleadingindicatorsreferenceturningpointsandcomponentseries.htm ]
+
+The forecasting framework is as following:
+
+\begin{equation}
+\label{eq:rec-ols}
+p_t = \alpha + \beta(L) \small\text{PREDICTOR}_t + \mathbf\Gamma(L) \mathbf X_t + e_t,
+\end{equation}
+
+\noindent 
+where $p_t$ is the recession dummy, $\small\text{PREDICTOR}_t$ could be one of 
+$\small\text{CREDIT}_t$, $\small\text{HOUSING}_t$, or $\small\text{LEVERAGE}_t$.
+In order to incorporate past movements of cycles without including too many
+lags, I use the past-two-year moving average (de-trended) values for all three 
+predictors. $\mathbf X_t$ are the control variables. 
+
+Due to the well-known problems with linear probability models -- the predicted 
+values are not confined within 0 and 1, I also estimate a probit model:
+
+\begin{equation}
+\label{eq:rec-ols}
+\text{probit} (p_t) = \alpha + \beta(L) \small\text{PREDICTOR}_t + \mathbf\Gamma(L) \mathbf X_t + e_t.
+\end{equation}
+
+To evaluate the predictive power of the model, I use the Receiver Operating 
+Characteristic (ROC) curve, following @Schularick2012 and @jorda2021.
+The ROC curve is a widely used tool to assess binary classification ability. 
+The binary classifier here is $I(\hat p - \theta > 0)$, where $\hat p$ 
+is the predicted value of the model, $\theta$ is a varying threshold. 
+The ROC curve plots the true positive rate (TPR), defined as the number of 
+true positives out of all classified positives, against the false positive 
+rate (FPR), defined as the number of false positives out of all classified 
+negatives. 
+Both the TPR and FPR vary along with $\theta$. The larger the value of $\theta$,
+the more conservative the classifier is in making recession calls
+(positives). As a result, the classification of positives becomes more 
+accurate; while at the same time, the classifier makes increasing number of
+false positives (fall-out).
+Conversely, the smaller the value of $\theta$, the more aggressive the 
+classifier becomes. As the true positive rate declines, the false positive 
+(fall-out) rate also decreases. 
+Therefore, the 45-degree line is the benchmark non-informative line that
+provides no predictive ability. Any informative classifier should be above 
+the 45-degree line.
+The area under the ROC curve (AUROC) provides a single statistic that gauges
+the predictive power of the model. 
+
+Figure \ref{fig:roc} plots the ROC curve of a linear probability model with 
+a single regressor (credit, housing price, or leverage ratio).
+All three models are above the 45-degree line, indicating they are all 
+informative in predicting recessions. 
+Among the three, credit has the best predictive power as a single predictor. 
+
+```{r roc, fig.cap="Receiver Operating Characteristic Curve"}
+plot_roc
+```
+
+Table \ref{tab:rec} compares the models with the three financial predictors
+with a benchmark model with only GDP, CPI and Repo Rates as the predictors. 
+The benchmark linear model has an AUROC of 0.853, which itself is good enough.
+It is impressive that inclusion of any of the three financial variables 
+increases the recession predictive power further more. 
+The linear model with credit increases the AUROC to 0.953, which is almost 
+close to perfect accuracy. 
+The linear models with housing price and leverage ratios have AUROC of 
+0.88 and 0.908 respectively. 
+The probit models have slightly higher AUROC than their linear counterparts.
+
+The magnitude of the coefficients are also sizable. 
+Credit has a positive coefficient of 0.313.
+Given the standard deviation of credit gaps is 0.747, if credit growth is 
+one standard deviation above the trend for the past two years,
+it increases the probability of subsequent recession by 0.233 points. 
+Since the sample frequency of recessions is 0.476, credit alone predicts 
+almost 50% of recessions. 
+
+The leverage ratio also has a significant positive coefficient, though the 
+magnitude is not as large as credit. 
+These evidence are generally consistent with the experience from developed 
+countries [@Schularick2012], though recessions are defined differently, that 
+credit booms over past years is indicative of a higher risk of recessions 
+(or crisis).
+
+Another interesting finding is the negative coefficient of housing prices,
+which can be interpreted as housing price booms alleviate the risk of 
+recessions, or declining of housing price over the past years presage
+subsequent recessions.
+This seems suggest housing price is even more forward-looking than credit.
+
+```{r rec}
+table_rec %>% 
+  kbl(booktabs = T, escape = F, 
+      caption = "Recession prediction with financial cycles") %>% 
+  add_header_above(c(" ", "OLS"=4, "Probit"=4)) %>% 
+  add_header_above(c("", "Dependent variable: probability of recession"=8)) %>% 
+  footnote(general = str_c(
+    "Standard errors in parentheses. Marginal effects not reported.",
+    "*$p<0.1$, **$p<0.05$, ***$p<0.01$."), escape = F) %>% 
+  kable_styling(full_width = T) %>% 
+  landscape()
+```
 
 # Discussion
 
