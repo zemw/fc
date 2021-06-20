@@ -2,6 +2,7 @@
 #'
 #' @param fit an lm model
 #' @param coefs regressors whose coefficients are to keep in the output table
+#' @param coefs regressors to exclude in the output table
 #' @param rename rename the regressors; a vector of strings, or a function that 
 #'               takes a current names of regressors and returns the new name.
 #' @param label the column name of the model
@@ -13,7 +14,8 @@
 #' @param add_lines add other rows; list(name = value)
 #' 
 .smart_summary <- function(fit,
-                           coefs,
+                           coefs = NULL,
+                           excls = NULL,
                            rename = NULL,
                            label = "*",
                            digits = 3,
@@ -22,8 +24,17 @@
                            add_stats = list(),
                            add_lines = list()) {
   
-  res <- tidy(coeftest(fit, vcov. = vcov)) %>%
-    filter(grepl(str_c(coefs, collapse = "|"), term)) %>%
+  res <- tidy(coeftest(fit, vcov. = vcov)) 
+  
+  if (!is_null(coefs)) {
+    res %<>% filter(grepl(str_c(coefs, collapse = "|"), term)) 
+  }
+  if (!is_null(excls)) {
+    res %<>% filter(!grepl(str_c(excls, collapse = "|"), term)) 
+  }
+    
+  # combine coefficients and standard errors
+  res %<>%
     mutate(value = paste(
       round(estimate, digits),
       case_when(
@@ -42,6 +53,8 @@
     } else {
       res %<>% mutate(name = map_chr(term, as_mapper(rename)))
     }
+  } else {
+    res %<>% mutate(name = term)
   }
   
   res %<>% select(name, value)
@@ -66,15 +79,15 @@
   # append summary statistics
   gln <- glance(fit)
   
-  if ("r.squared" %in% stats) {
-    res %<>% add_row(name = "$\\R^2$",
+  if (("r.squared" %in% stats) && ("r.squared" %in% names(gln))) {
+    res %<>% add_row(name = "$R^2$",
                      value = format(round(pull(gln, "r.squared"), digits)))
   }
-  if ("adj.r.squared" %in% stats) {
-    res %<>% add_row(name = "Adj. $\\R^2$",
+  if (("adj.r.squared" %in% stats) && ("adj.r.squared" %in% names(gln))) {
+    res %<>% add_row(name = "Adj. $R^2$",
                      value = format(round(pull(gln, "adj.r.squared"), digits)))
   }
-  if ("nobs" %in% stats) {
+  if (("nobs" %in% stats) && ("nobs" %in% names(gln))) {
     res %<>% add_row(name = "$N$",
                      value = format(round(pull(gln, "nobs"), digits)))
   }
@@ -90,7 +103,8 @@
 #' @param ... models to summarize
 #' 
 smart_summary <- function(...,
-                          coefs,
+                          coefs = NULL,
+                          excls = NULL,
                           rename = NULL,
                           label = "(1)",
                           digits = 3,
@@ -104,9 +118,9 @@ smart_summary <- function(...,
     .smart_summary(
       .fit,
       coefs,
+      excls,
       rename,
-      sprintf("(%d)", .index),
-      # label
+      sprintf("(%d)", .index), # label
       digits,
       vcov,
       stats,
@@ -115,13 +129,18 @@ smart_summary <- function(...,
     )
   }) 
   res <- sums %>% reduce(~full_join(.x, .y, by = "."))
+  
   # make sure the summary statistics to the bottom of the table
   S <- length(stats) + length(add_stats) + length(add_lines)
   L <- nrow(sums[[1]])
   N <- nrow(res)
-  res %<>% slice(1:(L-S), (L+1):N, (L-S+1):L)
+  # rearrange row order
+  if (L == S) res %<>% slice((S+1):N, 1:S) 
+  else res %<>% slice(1:(L-S), (L+1):N, (L-S+1):L)
+  
   return(res)
 }
+
 
 ## Example
 # smart_summary(fit_rec_base, fit_rec_credit, fit_rec_house, fit_rec_leverage,
