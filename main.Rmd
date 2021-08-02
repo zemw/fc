@@ -36,6 +36,22 @@ ggplot2::theme_set(theme_minimal() + theme(
 
 # Introduction {#intro}
 
+
+
+Modern economics concerns with the efficient allocation of real goods and wealth
+through the market mechanism. The real "goods" aspects of the economy has been 
+the focus of economic analysis.
+Yet as long as we are not living in a bartering economy,
+Economic living always involve "financial" aspects associated with transaction 
+mediation, debt issuance, and asset accumulation. 
+
+
+Economic views about the role of finance in macroeconomic has involved over time. 
+Money view. irrelevant view. credit view. 
+
+The onset of the global financial crisis has rekindled a wave of rethink of 
+this matter.
+
 The Global Financial Crisis has prompted a rethink of the role of finance to the
 real economy. Though the view that financial factors generate economic
 fluctuations has been along for centuries, the mainstream neoclassical thinking
@@ -52,6 +68,324 @@ finance and real economy. On the theoretical side, notably, Gertler and Kiyotaki
 (2011). Empirical literature have focused on capturing the regularities of
 financial cycles and how it intereacts with real business cycles
 (Claessens, 2011).
+
+
+
+# Literature review
+
+The idea that financial aspects are nonneutral and could have real impact on the 
+economy is nothing new.
+Early discussion of the matter dates back to early eighteenth century, when
+French economist Richard Cantillon discovered that increasing quantity of money 
+does not raise the price level uniformly, but incurs redistribution effect:
+those who are close to money creation benefit from an earlier rise in price 
+and income. Therefore, they can enjoy a higher standard of living at the expense 
+of those far away from money creation. 
+
+However, Cantillon's nonneutral monetary theory was more than overwhelmed by 
+the influential classic writers such as Adam Smith, who popularized the profound 
+economic thought that "money is a veil".
+Smith wrote:
+
+> It would be too ridiculous to go about seriously to prove, that wealth does 
+not consist in money, or in gold and silver; but in what money purchases, and 
+is valueable only for purchasing...
+To attempt to increase the wealth of any country, either by introducing or by 
+detaining in it an unnecessary quantity of gold and silver, is as absurd as it 
+would be to attempt to increase the good cheer of private families by obliging 
+them to keep an unnecessary number of kitchen utensils. [@Smith, p.406]
+
+The idea of "money veil" dominated throughout the Smith-Ricardo tradition.
+The precise job of economists is to look through the veil and reveal
+the "real" economic relations behind it. 
+Smith recognized that banking operations might improve economic performance, but
+banking was not regarded as anything essential to the wealth of a nation. 
+
+The nineteenth century development gave birth to the controversy between the 
+Currency School, who adhered to the Quantity Theory and believed paper money 
+should function as if they were gold, and the Banking School, who noticed 
+deposits played an important role in money creation and money supply was
+driven by market demand. 
+For the purpose of this paper, we naturally give more attention to the Banking
+School, since there is no gold or silver in our monetary system any more, and 
+modern finance is more close to the picture painted by banking school theorists.
+
+Knut Wicksell's work at the turn of the century advanced the nineteenth century
+money and banking theories into the twentieth century.
+Wicksell's theory was definitely influenced more by the Banking School, 
+particularly Thomas Tooke, than the Currency School. 
+Wicksell differentiated a "pure cash economy" from a "credit economy".
+In the latter case, "the necessary quantity of money can be infinitely small, 
+and its velocity of circulation to be infinitely great" [@Wicksell, p.65].
+With organized credit channeling (i.e. banking), money does not even have to
+circulate at all to facilitate transactions, since "all domestic payments are
+effected by means of the *Giro* system and bookkeeping transfers" 
+[@Wicksell, p.70].
+In such a system, the supply of money is totally elastic, which makes 
+deducting price level from the quantity of money insensible. 
+Wicksell therefore diverted the focus of monetary control from reserve 
+quantities to the rate of interest, claiming that 
+the linkage between financial operations and the real economy is through the 
+difference between the money rate of interest and the "natural rate of interest" 
+(real return on capital).
+Whenever the money rate of interest is lower than the natural rate of interest, 
+a surplus is generated as entrepreneur profits, which encourages business 
+expansion.
+Therefore, excessive credit facilitates overly expansion. 
+The inevitable speculative behavior developed during expansion presage 
+a future economic downturn as correction.
+
+> Under special conditions simple credit may itself be capable of a significant
+degree of expansion, for instance at times of speculation as a result of the
+attractiveness of higher profits, or of the offer of ever higher prices or of
+a higher rate of interest. But as soon as this incentive disappears, the
+contraction is correspondingly catastrophic, as is revealed in the period of
+crisis that ensues. Everybody now hastens to fortify his balances, which appear
+much too small in relation to the new level of prices. The demand for goods
+contracts, their supply increases, and prices fall, for a time possibly far
+below their normal level—particularly if confidence has been strained and
+general mistrust prevails. [@Wicksell, p.62]
+
+
+Joseph Schumpeter's development-oriented and innovation-based banking theory 
+has made special contributions to monetary thinking.
+Schumpeter regarded "economic development consists in a different employment of 
+existing services of labor and land", and banking credit is essential to the 
+process of development.
+
+> The essential function of credit in our sense consists in enabling the 
+entrepreneur to withdraw the producers' goods which he needs from their 
+previous employments, by excercising a demand for them, and thereby to force
+the economic system into new chanels... 
+the nature of the process, which consists in creating a new demand for, 
+without simultaneously creating, a new supply of goods.
+[@Schumpeter, p.106]
+
+The peculiar of banking business is precisely, contrary to the common belief, 
+that banks do not lend depositors' money, but create purchasing power 
+on their own.
+Banks identify profitable business and grand them purchasing power so that 
+productive resources can be drawn from other employment and reallocated into 
+the new business. 
+In this regard, banks play a central role of resource allocation in a 
+capitalist economy, which is considered by Schumpeter the key difference 
+between a capitalist economy and a command or planned economy. 
+Money is never a veil in a capitalist setting, "...the essential features 
+of the capitalist process may depend upon the 'veil' and that the 'face 
+behind it' is incomplete without it."
+In Schumpeter's "creative destruction" paradigm, recessions or crisis can be 
+viewed as "credit booms gone wrong". 
+"This loss always occurs if the entrepreneur does not succeed in producing 
+commodities at least equal in value to the credit plus interest."
+[@Schumpeter, p.114]
+
+
+The Great Depression in the early twentieth century sparked various economic
+thoughts attempting to explain how financial stress transmitted to economic
+crisis. One of the most notable theories among them is Fisher's 
+"debt deflation" theory [@Fisher1933].
+According to Fisher, when an economy is heavily indebted, debt liquidation 
+and deflation triggers a downward spiral that sends the economy to deep crisis.
+
+> Assuming, accordingly, that, at some point of time, a state of over-
+indebtedness exists, this will tend to lead to liquidation, through the alarm 
+either of debtors or creditors or both. 
+Then we may deduce the following chain of consequences in nine links: 
+(1) Debt liquidation leads to distress selling and to 
+(2) Contraction of deposit currency, as bank loans are paid off, and to a
+slowing down of velocity of circulation. This contraction of deposits and of
+their velocity, precipitated by distress selling, causes 
+(3) A fall in the level of prices, in other words, a swelling of the dollar. 
+Assuming, as above stated, that this fall of prices is not interfered with by 
+reflation or otherwise, there must be 
+(4) A still greater fall in the net worths of business, precipitating
+bankruptcies and 
+(5) A like fall in profits, which in a "capitalistic," that is, a private-
+profit society, leads the concerns which are running at a loss to make 
+(6) A reduction in output, in trade and in employment of labor. These
+losses, bankruptcies, and unemployment, lead to 
+(7) Pessimism and loss of confidence, which in turn lead to 
+(8) Hoarding and slowing down still more the velocity of circulation. 
+The above eight changes cause 
+(9) Complicateddisturbances in the rates of interest, in particular, a fall
+in the nominal, or money, rates and a rise in the real, or commodity, rates 
+of interest.
+[@Fisher1933]
+
+Another influential school of thoughts spawned by the 
+Great Depression is Monetarism, largely due to the work of @friedman1963a.
+Friedman and Schwartz, through a careful study of the monetary history of the 
+United States, found that 
+
+> Changes in money income and prices have, in every case, been accopanied by 
+a change in the rate of growth of the money stock, in the same direction and 
+of appreciate magnitude, and there are no comparable disturbances in the rate 
+of growth of the money stock unaccompanied by changes in money income and prices.
+[@friedman1963b]
+
+The quantity of money, therefore, is an independent source of economic 
+fluctuations, not merely a reflection of cyclical behavior of the real economy. 
+
+> The reflex influence of business on money...would then become part of the 
+partly self-generating mechanism whereby monetary disturbances are transmitted.
+[@friedman1963b]
+
+The central mechanism transmitting monetary shocks to economic fluctuations, 
+identified by Friedman and Schwartz, is through portfolio adjustments. 
+For example, an initial impulse on money stocks disturbs money holders' 
+portfolio of money and securities, thus triggers a portfolio rebalance toward
+more security holdings.
+As they seek to purchase these assets, they will bid up the prices of financial 
+assets. As a result, an imbalance of the portfolio with financial wealth and 
+real income will emerge, which leads to more purchasing of real goods and 
+services, therefore raise the general price level.
+Friedman and Schwartz also argue the portfolio adjustment movement always has 
+a tendency to overshoot because of adaptive expectations and feedback effects.
+The dynamic process of overshooting and adjustment fulfills a 
+"monetary theory of partly self-generating cyclical fluctuations".
+
+Although the effect of changing stocks of money on economic activities is 
+undeniable, we believe that the monetary theory of business cycle is inadequate.
+First of all,
+in present times with increasing complexity of financial markets, a whole range
+of quasi-money assets are created and compete with traditional banking deposits.
+It becomes less justified to exclusively focus on banking deposits which is the 
+only financial assets regarded as money.
+Money is inadequate in modern context in the sense that money fails to account 
+for a hefty amount of intermediary flows.
+Empirical studies also identified a decoupling of credit and money in postwar 
+period, that money becomes a less credible predictor for business cycles 
+[@Schularick2012].
+Secondly,
+exclusively focusing on money will miss important mechanism that finance 
+interacts with the real economy. As pointed out by @Schumpeter and @Fisher1933,
+financial forces affect real economic activities not only through the quantity 
+of money, but the quality of financing and the level of indebtedness is also 
+critical. 
+In other words, in terms of financial and economic stability, what matters 
+is the overall liability structure, not only the narrowly defined stock of money.
+For the above reason, throughout this paper we focus on total credit generated 
+by the financial system (including both banks and nonbank institutions), 
+not the stock of money. 
+
+
+@GurleyShaw is a remarkable work on theorizing financial markets and institutions.
+Gurley and Shaw realized that narrowly focusing on money was no longer  
+appropriate in the context of post-war U.S. 
+They "attempt to develop a theory of finance that encompasses the theory of money".
+@GurleyShaw developed a general equilibrium framework for financial assets and 
+debt. They emphasize how financial development alters the equilibrium growth path 
+even without price stickness or money illusion.
+
+> We have played the game according to the ground rules of neo-classical 
+economics in order to show that even here money is not a veil, that it may
+have an important role to play in determining the level and position of output.
+[@GurleyShaw, p.10]
+
+The reason is briefly as following: suppose there are more debt issuance,
+given the spending units' portfolio preference, their demand for liquidity 
+grows as debt accumulates. If the supply of money stays constant, it will
+entail a higher interest rates in the new equilibrium, which will no long 
+be the same as the previous one. 
+Therefore, to maintain a balanced growth path, monetary policy must expand
+proportional to rising debt to satisfy the portfolio diversification demand 
+of spending units. 
+This is true even in neo-classical settings with perfect price flexibility.
+
+The development of nonmonetary intermediaries alter the equilibrium too.
+The presence of money substitutes tend to offset central banks' effort to 
+control the money supply, which renders monetary policy less effective. 
+Therefore, what matters, to both growth and monetary policy concerns, is the 
+"financial capacity", which is the capacity to absorb debt without restrain
+the current spending [@gertler1988].
+Financial intermediaries are important because they enrich the channels of 
+financial resources and make it possible for certain borrowing and lending
+that would be infeasible otherwise.
+
+
+However, before the theories of Gurley and Shaw gained influence, the 
+stagflation experience of the 1970s gave rise to the school of rational 
+expectations, and culminated in the Real Business Cycle (RBC) theory 
+[@prescott1982].
+The RBC theory projects business cycles as efficient response to real 
+exogenous shocks, and denies any endogenously generated fluctuations. 
+The RBC theory is a revival of the classical dichotomy: money becomes 
+a veil again.
+More comments on the RBC theory is unnecessary. The correctness of the theory
+is irrelevant here because RBC provides no explanation for the financial 
+aspects of the economy, which is the main concern of this paper.
+As @Borio2014 remarked: "since shocks can be regarded as a measure of our
+ignorance, rather than of our understanding, this approach leaves much of 
+the behaviour of the economy unexplained."
+
+The end of the Bretton Woods system at early 1970s decoupled the Dollar from 
+the gold, since then money lost its peg and could expand without limits. 
+The new environment brewed a monetary thought called the "credit view" 
+as opposed to the "money view" represented by Milton Friedman. 
+The controversy more or less resembled the 19th century debate between the 
+Banking School and the Currency School.
+@mishkin1978 found that household balance sheet was an important transmission
+mechanism during the Great Depression causing the decline of aggregate demand.
+@bernanke1983 found money was not enough to explain the severity of the Great
+Depression; the collapse of the financial system, choking off credit to the 
+economy, was an important determinant of the depth of the depression.
+@bernanke1986 showed that credit explained a much larger proportion of money-
+income correlation than commonly assumed.
+These research diverted the money-focus explanation of economic fluctuation 
+to credit creation and balance sheet analysis.
+
+Also the development of modeling techniques, and the discovery of information 
+asymmetry, enabled economists to incorporate financial factors in economic
+models with the same level of rigor as Real Business Cycle models. 
+@bernanke1986 showed that with information asymmetry, financial arrangement 
+between borrowers and lenders entails an agent cost. 
+Only entrepreneurs with net worth above a certain level can borrow. 
+Therefore, the capital supply curve depends on entrepreneurs' net worth.
+After a productivity shock that raises the entrepreneurs' net worth, 
+the expansion persists because higher net worth enables more borrowing and 
+capital accumulation which in turn raise the entrepreneurs' net worth even 
+higher.
+This is called an "accelerator effect".
+@kiyotaki1997 also showed collateral requirements in borrowing tend to amplify 
+business cycle fluctuations. 
+Because borrowers' credit limits are constrained by the price of the collateral 
+assets, while the price of these assets are also affected by the credit limits. 
+Therefore, there is a self-reinforcing interaction between credit and asset 
+prices that generate business cycles endogenously.
+
+
+The idea of endogenous business cycles generated by the financial system is 
+also propounded by schools of thought outside of the mainstream, such as 
+Hyman Minsky's "financial stability hypothesis", which was largely ignored
+for decades until the Global Financial Crisis reigniting the interest of 
+the theory.
+Unlike the neo-classical approach of assuming perfect competition, Minsky 
+analyzed a capitalist economy with monopolistic power. 
+The function of prices is not only to clear the market and allocate resource,
+but must also be able to support the debt structure of the economy.
+
+> ...the normal functioning of a modern capitalist economy depends upon capital 
+income (and thus investment) reaching and sustaining a level at which capital
+assets earn sufficient income to validate past debts. If this situation does
+not prevail, the prices of capital assets and debts fall, and such a decline
+adversely affects investment demand.[@minsky2008, p.195]
+
+Therefore, the financial arrangement, or the debt structure, is never a simple
+veil, but determines relative prices, income, and output. 
+The capitalist economy is "a system of borrowing and lending based upon 
+margins of safety" [@minsky2008, p.90], which means the margins of cash 
+receipts relative to payment commitments on liabilities. 
+The higher the ratio of liabilities to cash flow, or the ratio of external 
+to internal financing, the narrower the margins of safety.
+@minsky2008 proposed that the financial system is inherently unstable. 
+Sustained growth does not only induce more investment, but also a change in 
+the financing structure, from internal financing to external financing 
+("speculative financing" or "Ponzi financing"), which means the erosion of 
+margins of safety. 
+If such a financing structure is encountered with a negative shock so that
+cash income can no longer validate the financing structure, the system breaks
+down and heads toward a financial crisis.
+
 
 
 # Data and methodology {#data}
