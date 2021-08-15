@@ -7,30 +7,30 @@
 ## Unit root test for the variables {#annex-unit-root}
 
 ```{r, out.width="60%"}
-knitr::include_graphics("graph/ar_root.pdf")
+knitr::include_graphics("fig/ar_root.pdf")
 ```
 
 ## Residual diagnosis of VAR model {#annex-residuals}
 
 ```{r}
-knitr::include_graphics("graph/var_resid.pdf")
+knitr::include_graphics("fig/var_resid.pdf")
 ```
 
 ## Impulse responses of all variables {#annex-impulse}
 
 ```{r}
-knitr::include_graphics("graph/imp_full.pdf")
-knitr::include_graphics("graph/imp_full_acc.pdf")
+knitr::include_graphics("fig/imp_full.pdf")
+knitr::include_graphics("fig/imp_full_acc.pdf")
 ```
 
 ## Historical decomposition of all variables {#annex-hd-full}
 
 ```{r}
-knitr::include_graphics("graph/hd_full.pdf")
+knitr::include_graphics("fig/hd_full.pdf")
 ```
 
 ## Robustness to different ordering of variables {#annex-ordering}
 
 ```{r}
-knitr::include_graphics("graph/imp_ordering.png")
+knitr::include_graphics("fig/imp_ordering.png")
 ```

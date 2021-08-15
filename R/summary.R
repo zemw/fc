@@ -2,7 +2,7 @@
 #'
 #' @param fit an lm model
 #' @param coefs regressors whose coefficients are to keep in the output table
-#' @param coefs regressors to exclude in the output table
+#' @param excls regressors to exclude in the output table
 #' @param rename rename the regressors; a vector of strings, or a function that 
 #'               takes a current names of regressors and returns the new name.
 #' @param label the column name of the model
@@ -36,15 +36,22 @@
   # combine coefficients and standard errors
   res %<>%
     mutate(value = paste(
-      round(estimate, digits),
-      case_when(
-        p.value < 0.01 ~ "***",
-        p.value < 0.05 ~ "**",
-        p.value < 0.1  ~ "*",
-        TRUE ~ ""
-      ),
-      sprintf("(%s)", round(std.error, digits))
+      format(round(estimate, digits), nsmall=digits),
+      sprintf("(%s)", format(round(std.error, digits), nsmall=digits))
     ))
+  
+  # # combine coefficients and standard errors, with p-values
+  # res %<>%
+  #   mutate(value = paste(
+  #     format(round(estimate, digits), nsmall=digits),
+  #     case_when(
+  #       p.value < 0.01 ~ "***",
+  #       p.value < 0.05 ~ "**",
+  #       p.value < 0.1  ~ "*",
+  #       TRUE ~ ""
+  #     ),
+  #     sprintf("(%s)", format(round(std.error, digits), nsmall=digits))
+  #   ))
   
   # rename coefficients
   if (!is.null(rename)) {

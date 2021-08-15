@@ -1,6 +1,3 @@
 book_filename: "fc"
 delete_merged_file: true
-language:
-  ui:
-    chapter_name: "Chapter "
 rmd_files: ["index.Rmd", "main.Rmd", "appx.Rmd"]

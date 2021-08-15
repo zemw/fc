@@ -1,42 +1,18 @@
-
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F) 
 knitr::opts_chunk$set(fig.pos = 'htpb', fig.align = 'center') 
 knitr::opts_chunk$set(out.width = '100%', dpi=300) 
 knitr::opts_chunk$set(fig.env="figure") 
+if (!exists("R_MAIN")) source("R/main.R")
 ```
 
-```{r libs, include=FALSE}
-library(tidyverse)
-library(lubridate)
-library(magrittr)
-library(readxl)
-library(tsibble)
-library(slider)
-library(xts)
-library(timetk)
-library(patchwork)
-library(rlang)
-library(kableExtra)
-library(dynlm)
-library(broom)
-library(lmtest)
-library(sandwich)
-library(stargazer)
-library(latex2exp)
-library(bHP)
-library(pROC)
-```
-
-```{r plot-setup, include=FALSE}
-ggplot2::theme_set(theme_minimal() + theme(
-  legend.title = element_blank(), 
-  legend.position = "bottom"))
-```
 
 # Introduction {#intro}
-
-
 
 Modern economics concerns with the efficient allocation of real goods and wealth
 through the market mechanism. The real "goods" aspects of the economy has been 
@@ -71,7 +47,7 @@ financial cycles and how it intereacts with real business cycles
 
 
 
-# Literature review
+# Literature review {#litr}
 
 The idea that financial aspects are nonneutral and could have real impact on the 
 economy is nothing new.
@@ -390,26 +366,6 @@ down and heads toward a financial crisis.
 
 # Data and methodology {#data}
 
-```{r, message=FALSE}
-data_raw <- 
-  read_excel("data/data_raw.xlsx", sheet = 1) %>%
-  mutate(date = as_date(date))
-
-# HP filtered cyclical components
-data_cyl <- 
-  read_csv("data/data_vars.csv") %>%
-  mutate(date = yq(date) + months(2)) %>% 
-  # multiple by 100 since log difference means 
-  # the percent deviation from the trend
-  mutate_at(vars(GDP, House, Credit), ~.*100)
-
-# standardize the cycles by standard deviation (mean = 0)
-data_cyl_std <- data_cyl %>%
-  mutate_at(vars(-date), ~ ./sd(.))
-
-```
-
-
 ## Choice of variables {#indicators}
 
 I choose three indicators to characterize the financial cycles: credit, house
@@ -459,27 +415,6 @@ inflation. For the purpose of studying financial cycles, it is the nominal
 values that matter. ]
 
 
-```{r plot-raw-data, include=F}
-# fig.heighht = 3.5
-data_raw %>%
-  filter(year(date) > 1998) %>%
-  pivot_longer(2:7) %>%
-  group_by(name) %>%
-  ggplot(aes(x = date, y = value)) +
-  facet_wrap(~name, scales = "free_y") +
-  labs(x = NULL, y = NULL) +
-  geom_line() 
-
-data_cyl %>%
-  pivot_longer(2:7) %>%
-  group_by(name) %>%
-  ggplot(aes(x = date, y = value)) +
-  facet_wrap(~name, scales = "free_y") +
-  labs(x = NULL, y = NULL) +
-  geom_line() 
-```
-
-
 ## Cycle extraction {#cycle}
 
 There are many methodologies to identify cycles in macroeconomic variables. The
@@ -516,212 +451,17 @@ troughs must appear alternately, that is there must be one and only one peaks
 (troughs) between two troughs (peaks). Figure \ref{fig:cycle-tp} plots the HP
 filtered cycles of the variables together with the identified turning points.
 
-```{r}
-# Identify turning point using Harding and Pagan algorithm
-# The medium-term window has 9 quarters
-#  - Y_t is the peak if it is the maximum within the window
-#  - Y_t is the trough if it is the minimum within the window
-data_peak_trough <- data_cyl %>%
-  pivot_longer(2:7, names_to = "indicator", values_to = "value") %>%
-  group_by(indicator) %>%
-  mutate(peak = slide_dbl(
-    value,  
-    function(x) {
-      mid <- (length(x) + 1) / 2
-      if (which.max(x) == mid) x[mid]
-      else NA
-    },
-    .before = 4, .after = 4, .complete = T)
-  ) %>%
-  mutate(trough = slide_dbl(
-    value,  
-    function(x) {
-      mid <- (length(x) + 1) / 2
-      if (which.min(x) == mid) x[mid]
-      else NA
-    },
-    .before = 4, .after = 4, .complete = T)
-  ) %>%
-  arrange(.by_group = T)
-```
-
-```{r}
-# this function is used to count the number of cycles
-count_nonNA <- (function() {
-  # counter inside closure
-  .counter <- 0L 
-  # for each group, reset the counter
-  .group <- 'default'
-  # return this function
-  function(value, group = 'default') {
-    if (group != .group) {
-      .group <<- group
-      .counter <<- 0L
-    }
-    if (!is.na(value)) {
-      .counter <<- .counter + 1L
-    }
-    return(.counter)
-  }
-})()
-
-# compute peak/trough cycles: periods between two peaks (or troughs)
-# each non-NA value in `peak` or `trough` indicates 
-# the start or end of a cycle
-data_peak_trough %<>%
-  group_by(indicator) %>%
-  mutate(peak_cycle= map2_int(peak, indicator, count_nonNA)) %>%
-  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
-```
-
-```{r}
-# We restrict peaks and troughs must appear alternately, i.e. 
-# - between two peaks, there is only one trough
-# - between two troughs, there is only one peak
-data_peak_trough %<>%
-  group_by(indicator, peak_cycle) %>% 
-  mutate(trough = (function(x) {
-      if (all(is.na(x))) x
-      else {
-        # if there are non-minimal values within two peaks
-        # assign those values to NA
-        min_x <- min(x, na.rm = T)
-        x %>% map_dbl(~ if_else(. > min_x, NA_real_, .))
-      }
-    })(trough)
-  )  
-
-data_peak_trough %<>%
-  group_by(indicator, trough_cycle) %>% 
-  mutate(peak = (function(x) {
-      if (all(is.na(x))) x
-      else {
-        # if there are non-maximal values within two troughs
-        # assign those values to NA
-        max_x <- max(x, na.rm = T)
-        x %>% map_dbl(~ if_else(. < max_x, NA_real_, .))
-      }
-    })(peak)
-  ) 
-
-# after correcting turning points, recompute peak/trough cycles
-data_peak_trough %<>%
-  group_by(indicator) %>%
-  mutate(peak_cycle = map2_int(peak, indicator, count_nonNA)) %>%
-  mutate(trough_cycle = map2_int(trough, indicator, count_nonNA)) 
-```
-
-```{r}
-# this is a trick that generates -1, 1, -1, 1,... sequence
-ss_substract <- function(x, y) {
-  z <- x - y
-  if (sum(z) > 0) 
-    z[z==0L] <- -1L
-  else if (sum(z) < 0) 
-    z[z==0L] <- 1L
-  z
-}
-
-# merge peaks and troughs together
-# each peak-to-trough or trough-to-peak is counted 
-data_peak_trough %<>%
-  group_by(indicator) %>%
-  mutate(peak_trough = if_else(!is.na(peak), peak, trough)) %>%
-  # 1 means a upturn phase; -1 means a downturn phase
-  mutate(up_down = ss_substract(trough_cycle, peak_cycle)) %>%
-  mutate(peak_trough_cycle = (peak_cycle + trough_cycle) * up_down)
-```
-
 ```{r cycle-tp, fig.cap="Business cycles and turning points"}
-# plotting the cycles together with the turning points
-data_peak_trough %>%
-  ggplot(aes(x=date)) +
-  geom_line(aes(y=value)) +
-  geom_point(aes(y=peak), shape=24, fill="blue") +
-  geom_point(aes(y=trough), shape=21, fill="red") +
-  facet_wrap(~indicator, scales = "free_y") + 
-  labs(x=NULL, y=NULL) 
+fig_cycles
 ```
-
 
 # Basic features of financial cycles in China {#features}
 
 ## Duration and amplitude {#duration}
 
-
-```{r}
-# calculate the duration (number of quarters) of 
-# each contraction or expansion cycle
-stat_duration <- data_peak_trough %>% 
-  group_by(indicator, peak_trough_cycle) %>%
-  summarise(n = n()) %>%
-  mutate(phase = case_when(
-    peak_trough_cycle > 0 ~ "Upturn", 
-    peak_trough_cycle < 0 ~ "Downturn"
-  )) %>% 
-  filter(!is.na(phase)) %>%
-  group_by(indicator, phase) %>%
-  summarise(duration = mean(n)) 
-```
-
-```{r}
-# calculate the amplitude of each cycle
-# we use non-standardized cyclical series to reflect true order of magnitude
-stat_amplitude <- data_cyl %>% 
-  pivot_longer(2:7, names_to = "indicator",values_to = "value") %>%
-  left_join(
-    data_peak_trough %>% select(date, indicator, peak_trough, peak_trough_cycle), 
-    by = c("date", "indicator")
-  ) %>% 
-  group_by(indicator) %>%
-  arrange(.by_group = TRUE) %>%
-  # creating a leading vector, the number represents the peak or trough \
-  # in a upturn or downturn phase
-  mutate(peak_trough_1 = dplyr::lead(peak_trough, order_by = date)) %>%
-  group_by(indicator, peak_trough_cycle) %>%
-  summarize(
-    # the amplitude means the maximal percentage deviation from the trend
-    # since the trend is log transformed 
-    amplitude = sum(peak_trough_1, na.rm=T)
-  ) %>%
-  mutate(phase = case_when(
-    peak_trough_cycle > 0 ~ "Upturn", 
-    peak_trough_cycle < 0 ~ "Downturn"
-  )) %>% 
-  filter(peak_trough_cycle != 0, amplitude != 0) %>%
-  group_by(indicator, phase) %>%
-  summarise(amplitude = mean(amplitude)) 
-```
-
 ```{r dur-amp}
-# reshape the table for printing
-bind_rows(
-  # duration table
-  stat_duration %>%
-    pivot_wider(names_from = phase, values_from = duration) %>%
-    mutate(Variable = "Duration (Q)"),
-  # amplitude table
-  stat_amplitude %>%
-    pivot_wider(names_from = phase, values_from = amplitude) %>%
-    mutate(
-      Variable = if_else(
-        indicator %in% c("GDP", "Credit", "House"), 
-        "Amplitude (%)", 
-        "Amplitude (pp.)"
-      )
-    )
-  ) %>%
-  group_by(indicator) %>%
-  arrange(.by_group = T) %>%
-  mutate(`Full Cycle` = if_else(
-    Variable == "Duration (Q)", 
-    Upturn + Downturn, 
-    NA_real_)
-  ) %>%
-  select(Indicator = indicator, Variable, everything()) -> stat_dur_amp
-
 options(knitr.kable.NA = '')
-kbl(stat_dur_amp, digits = 2, booktabs = T,
+kbl(tbl_cycles, digits = 2, booktabs = T,
     caption = "Basic cyclical features of main variables") %>%
   collapse_rows(columns = 1) %>%
   kable_styling(full_width = F)
@@ -756,17 +496,6 @@ in China during downturns. These factors make real GDP more stable than
 financial variables. The results here are consistent with conclusions from
 Chinese literature [@Yinan2016; @Taihui2018]. ]
 
-```{r spectrum-analysis, include=FALSE}
-gg_spec <- function(x, log=FALSE) {
-  sp <- spectrum(x, plot=FALSE)
-  tb <- tibble(freq = sp$freq, spec = sp$spec) %>%
-    mutate(period = 1/freq)
-  tb
-}
-# gg_spec(data_raw$R007)
-# ggplot(.Last.value, aes(x=freq, y=spec)) + geom_line()
-```
-
 
 ## Correlation and concordance {#correlation}
 
@@ -777,7 +506,7 @@ and hence negatively correlated with GDP and CPI. House prices do not exhibit
 strong correlations with any other series.
 
 ```{r corr, fig.cap="Correlation between series", message=FALSE}
-data_cyl_std %>% GGally::ggpairs(columns = 2:7)
+fig_corr
 ```
 
 To further shed some light on the concordance of the cycles of different series,
@@ -791,33 +520,12 @@ $$ \rho_{XY} = \frac{1}{T} \sum_{t=1}^{T} [\rho_t^{X}\rho_t^{Y} + (1-\rho_t^{X})
 where $\rho_t^{X} = \begin{cases}0, \text{if X is in downturn} \\1, \text{if X is in upturn} \end{cases}$,
 $\rho_t^{Y} = \begin{cases}0, \text{if Y is in downturn} \\1, \text{if Y is in upturn} \end{cases}$.
 
-
-```{r}
-# impute value 1 or 0 to upturn or downturn phases
-stat_updown <- data_peak_trough %>%
-  group_by(indicator, peak_trough_cycle) %>%
-  # 1 indicate an upturn, 0 indicate a downturn
-  mutate(is_upturn = if_else(up_down > 0, 1, 0)) %>%
-  ungroup() %>%
-  select(date, indicator, is_upturn) %>%
-  pivot_wider(names_from = indicator, values_from = is_upturn) 
-```
-
-```{r cord, warning=FALSE}
-stat_updown %>%
-  select(-date) %>%
-  map(function(each, others) {
-    map_dbl(others, ~ sum(.x*.y + (1-.x)*(1-.y), na.rm = T)/length(.x), each)
-  }, stat_updown %>% select(-date)) %>%
-  as_tibble(rownames = NA) -> stat_concord
-rownames(stat_concord) <- names(stat_concord)
-
-stat_concord %>% 
+```{r cord}
+tbl_concord %>% 
   rownames_to_column(var = "Variables") %>%
   kbl(digits = 2, booktabs = T, caption = "Concordance between variables") %>%
   kable_styling(full_width = F)
 ```
-
 
 The concordance scores (Table \ref{tab:cord}) shows that GDP and CPI have 68%
 of their cycles overlapped. Interest rate cycles overlap 67% of GDP cycles, 64%
@@ -834,9 +542,9 @@ a financial cycle indicator peaks or troughs.
 This section conducts an event study based on the peaks and troughs 
 identified in Section \ref{cycle}.
 
-Figure \ref{fig:event-study-2} traces the average real GDP gaps 
+Figure \ref{fig:event-study} traces the average real GDP gaps 
 after a peak or trough in each of the three financial cycle indicators. 
-For comparison, Figure \ref{fig:event-study-2} also shows a reference trend 
+For comparison, Figure \ref{fig:event-study} also shows a reference trend 
 after a "placebo" event (the average of 1000 random draws of 6 consecutive 
 quarters from the dataset). 
 In every scenario, the dynamics of real GDP is visibly different from the 
@@ -858,153 +566,8 @@ after it peaks or troughs, which signals a less consequential response
 of the real economy. 
 
 
-```{r data-preparation}
-# preparing leads and lags data for event study
-data_leads_lags <- ungroup(data_peak_trough) %>% 
-  mutate(name = case_when(
-    indicator == "Credit/GDP" ~ "Leverage", 
-    indicator == "R007" ~ "IR", 
-    TRUE ~ indicator)) %>% 
-  mutate(peak = if_else(is.na(peak), 0L, 1L)) %>% 
-  mutate(trough = if_else(is.na(trough), 0L, 1L)) %>% 
-  select(date, name, value, peak, trough) 
-# generate leads and lags
-# todo: is there a way to automate this?
-data_leads_lags %<>%  # assign back to tibble
-  group_by(name) %>% 
-  mutate(
-    L0 = dplyr::lag(value, 0L),
-    L1 = dplyr::lag(value, 1L), 
-    L2 = dplyr::lag(value, 2L),
-    L3 = dplyr::lag(value, 3L),
-    L4 = dplyr::lag(value, 4L),
-    L5 = dplyr::lag(value, 5L),
-    L6 = dplyr::lag(value, 6L),
-    H0 = dplyr::lead(value, 0L), # duplicated values L0
-    H1 = dplyr::lead(value, 1L),
-    H2 = dplyr::lead(value, 2L),
-    H3 = dplyr::lead(value, 3L),
-    H4 = dplyr::lead(value, 4L),
-    H5 = dplyr::lead(value, 5L),
-    H6 = dplyr::lead(value, 6L)
-  ) %>% 
-  select(!value) %>% 
-  pivot_wider(values_from = c(L0:L6, H0:H6, peak, trough))
-```
-
-```{r event-study-helpers}
-# calculate summary statistics around a time event
-# condition: condition for the event (in expression)
-# var_names: vector of variable names to summarize
-summarize_around_event <- function(data, condition, var_names) {
-  # convert H1, L1, ... to 1, -1, ...
-  lags_as_integer <- function(name) {
-    if_else(str_starts(name, "L"), 
-            gsub("L", "-", name), 
-            gsub("H", "", name)
-            ) %>% as.integer
-    }
-  # returns a dataframe with columns:
-  # - index: leads and lags around the event
-  # - columns: mean of variables of interest
-  data %>% 
-    filter({{ condition }}) %>% 
-    select(contains(var_names)) %>% 
-    select(!contains(c("peak", "trough"))) %>% 
-    pivot_longer(everything()) %>% 
-    separate(name, c("index", "name"), remove = T) %>% 
-    mutate(index = lags_as_integer(index)) %>% 
-    group_by(name, index) %>% 
-    # todo: is it okay to remove NAs?
-    summarise(value = mean(value, na.rm = T)) %>%  
-    pivot_wider() 
-}
-
-# generate 'placebo' event (no event actually happened) used for reference
-# e.g. randomly draw a sample of 13 consecutive quarters for 1000 times
-#      and calculate the mean. 
-placebo_event <- function(data, var_names, random_draws = 1000) {
-  data %>% 
-    sample_n(random_draws, replace = T) %>% 
-    summarize_around_event(., TRUE, var_names) %>% 
-    rename_with(~str_c(., " placebo"), !index)
-}
-
-# plot the mean of the variables of interest around the event
-# event_df: must be the returned dataframe from summarize_around_event
-# x_lab: label for x-axis
-# y_max: max value of y-axis
-# var_names: not applicable at the moment
-plot_event <- function(event_df, x_lab = NULL, y_max = 2) {
-  
-    event_df %>% 
-    filter(index >=0 ) %>% 
-    pivot_longer(!index) %>% 
-    ggplot(aes(index, value, col=name, linetype=name)) + 
-    geom_line() +
-    geom_vline(xintercept = 0, col ="grey") +
-    geom_hline(yintercept = 0, col = "grey") + 
-    scale_y_continuous(limits = c(-y_max, y_max)) +
-    labs(x = x_lab, y = NULL) +
-    theme(aspect.ratio = 0.8)
-}
-
-```
-
-```{r event-study-1, include=F, eval=F, fig.cap="Dynamics around peaks and troughs", fig.asp = 1.2}
-(data_leads_lags %>% 
-  summarize_around_event(., peak_Credit == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after credit peak",1)  
-) +
-(data_leads_lags %>% 
-  summarize_around_event(., trough_Credit == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after credit trough",1)  
-) +
-(data_leads_lags %>% 
-  summarize_around_event(., peak_House == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after real estate peak", 1)
-)  +
-(data_leads_lags %>% 
-  summarize_around_event(., trough_House == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after real estate trough", 1)
-) +   
-(data_leads_lags %>% 
-  summarize_around_event(., peak_Leverage == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after leverage cycle peak", 2)
-)  +
-(data_leads_lags %>% 
-  summarize_around_event(., trough_Leverage == 1L, c("GDP", "CPI")) %>% 
-  plot_event(., "Quarters after leverage cycle trough", 2)
-) + 
-plot_layout(ncol = 2, guides = "collect")
-```
-
-```{r event-study-2, fig.cap="Real GDP after financial cycle peaks and troughs", fig.asp = 1.2}
-(summarize_around_event(data_leads_lags, peak_Credit == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after credit peak", 1)
-) +
-(summarize_around_event(data_leads_lags, trough_Credit == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after credit trough", 1)
-) +
-(summarize_around_event(data_leads_lags, peak_House == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after real estate peak", 1)
-) +
-(summarize_around_event(data_leads_lags, trough_House == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after real estate trough", 1)
-) +
-(summarize_around_event(data_leads_lags, peak_Leverage == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after leverage cycle peak", 2)
-) +
-(summarize_around_event(data_leads_lags, trough_Leverage == 1L, "GDP") %>% 
-  left_join(placebo_event(data_leads_lags, "GDP"), by = "index") %>% 
-  plot_event(., "Quarters after leverage cycle trough", 2)
-) +
-plot_layout(ncol = 2, guides = "collect")
+```{r event-study, fig.cap="Real GDP after financial cycle peaks and troughs", fig.asp = 1.2}
+fig_es_all
 ```
 
 
@@ -1076,7 +639,7 @@ use heteroskedasticity and autocorrelation consistent standard errors as most
 local projection literatures do. ] 
 
 The average paths in Figure \ref{fig:lp-coef} do exhibit different characteristics 
-after controls from the unconditional mean in Figure \ref{fig:event-study-2}.
+after controls from the unconditional mean in Figure \ref{fig:event-study}.
 First, real GDP falls below the growth trend shortly after (in one quarter) 
 peaks in any of the three financial cycle measures.
 Real GDP suffers a severe recessionary gap 6 quarters after credit cycle peaks.
@@ -1109,188 +672,25 @@ estate prices presage the dynamics of real output, even if leverage ratios
 are controlled. On the other hand, leverage ratio itself has the weakest 
 predictability for subsequent real output levels. 
 
-
-```{r regression-helpers}
-# Run a batch of regressions and return a list of lm results
-# formulas: a vector of string formulas to run
-# data: the data frame passed on to lm
-batch_run_regress <- function(formulas, data) {
-  formulas %>% map(~ lm(., data))
-}
-
-# Extract the coefficient of a certain regressor from a batch of regressions
-# lmfits: a list of lm result
-# coef: the variable of interest in the regressors
-batch_extract_coef <- function(lmfits, coef) {
-  coef <- enquo(coef)
-  lmfits %>% imap_dfr(function(fit, i) {
-    tidy(fit) %>% 
-      filter(term == quo_name(coef)) %>% 
-      mutate(index = i - 1) %>% # starts from 0 
-      select(index, estimate) %>% 
-      rename(!!coef := estimate) 
-  })
-}
-
-# summarize a batch of lm results into a single table
-# coef: a list of coefficients to keep in the output table
-#       e.g. list('Print-friendly name' = 'Original name') 
-# add_rows: a list of additional rows to add to the output table
-#           e.g. list(Controls = "Yes")
-# vcov: variance-covariance matrix; if null, robust SE is computed
-batch_summarize <- function(lmfits, coefs, add_rows = NULL, vcov = NULL) {
-  lmfits %>% imap(function(fit, index) {
-    label <- as.symbol(sprintf("(%d)", index))
-    tidy(coeftest(fit, NeweyWest)) %>% 
-      filter(term %in% names(coefs)) %>% 
-      mutate(term = as.character(coefs[term])) %>% 
-      mutate(!!label := sprintf("%.3f (%.3f)", estimate, p.value)) %>%  
-      select(term, !!label) %>% 
-      add_row(term = names(add_rows), !!label := as.character(add_rows)) %>% 
-      add_row(term = "$R^2$", !!label := glance(fit) %>% pull(r.squared) %>% format(digits=3)) 
-      # add_row(term = "N", !!label := glance(fit) %>% pull(nobs) %>% format()) 
-  }) %>% reduce(~full_join(.x,.y, by='term'))
-}
-
-# helpers to create formula strings with lags
-# I: converts a single symbol to string
-# L: creates lagged variables
-# H: creates leaded variables
-I <- function(x) paste(quo_name(enquo(x)))
-L <- function(x, n) paste(sprintf("L%d_%s", n, quo_name(enquo(x))), collapse = "+")
-H <- function(x, n) paste(sprintf("H%d_%s", n, quo_name(enquo(x))), collapse = NULL)
-# creates regression equation (in string)
-# note this returns a vector of strings when lhs is a vector
-EQ <- function(lhs, rhs) sprintf("%s ~ %s", lhs, str_c(rhs, collapse = "+"))
-```
-
-```{r run-local-projection}
-# controls <- c(L(GDP, 1:2), L(CPI, 0:2), L(IR, 0:2))
-# todo: should we include a full list of controls?
-controls <- c(L(GDP, 1:2), L(CPI, 0:2), L(IR, 0:2),
-              L(Credit, 0:2), L(House, 0:2), L(Leverage, 0:2))
-
-lmfit_credit_peak <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_Credit), controls)) %>% 
-  batch_run_regress(formulas = ., data = data_leads_lags)
-
-lmfit_credit_trough <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_Credit), controls)) %>% 
-  batch_run_regress(formula = ., data = data_leads_lags)
-
-lmfit_house_peak <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_House), controls)) %>% 
-  batch_run_regress(formulas = ., data = data_leads_lags)
-
-lmfit_house_trough <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_House), controls)) %>% 
-  batch_run_regress(formulas = ., data = data_leads_lags)
-
-lmfit_leverage_peak <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(peak_Leverage), controls)) %>% 
-  batch_run_regress(formulas = ., data = data_leads_lags)
-
-lmfit_leverage_trough <- 
-  EQ(lhs = H(GDP, 0:6), rhs = c(I(trough_Leverage), controls)) %>% 
-  batch_run_regress(formulas = ., data = data_leads_lags)
-```
-
 ```{r lp-coef, fig.cap="Real GDP gaps after financial cycle peaks and troughs, with controls", fig.asp=1.2}
-# a helper function to plot the coefficients from regression
-# lmfit: the lm result
-# coef: the symbol of regressor whose coeffient is of interest
-# x_lab: label for x-axis
-# y_max: max value for y-axis
-plot_lp_coef <- function(lmfit, coef, x_lab = NULL, y_max = 2) {
-  full_join(
-    batch_extract_coef(lmfit, {{ coef }}), 
-    batch_extract_coef(lmfit, `(Intercept)`), 
-    by = "index"
-    ) %>% 
-    mutate(treated = {{ coef }} + `(Intercept)`) %>% 
-    select(index, treated, untreated =  `(Intercept)`) %>% 
-    pivot_longer(!index) %>% 
-    ggplot(aes(index, value, col=name, linetype=name)) + 
-    geom_line() + 
-    geom_vline(xintercept = 0, col ="grey") +
-    geom_hline(yintercept = 0, col = "grey") + 
-    scale_y_continuous(limits = c(-y_max, y_max)) +
-    scale_color_discrete(guide = "none") +
-    scale_linetype_discrete(labels = unname(TeX(c("$\\delta_h+\\mu_h", "$\\mu_h")))) +
-    labs(x = x_lab, y = NULL) +
-    theme(aspect.ratio = 0.8)
-}
-# patch all six graphs together
-plot_lp_coef(lmfit_credit_peak, peak_Credit, "Quarters after credit peak") + 
-plot_lp_coef(lmfit_credit_trough, trough_Credit, "Quarters after credit trough") +
-plot_lp_coef(lmfit_house_peak, peak_House, "Quarters after real estate peak") +
-plot_lp_coef(lmfit_house_trough, trough_House, "Quarters after real estate trough") +
-plot_lp_coef(lmfit_leverage_peak, peak_Leverage, "Quarters after leverage cycle peak") +
-plot_lp_coef(lmfit_leverage_trough, trough_Leverage, "Quarters after leverage cycle trough") +
-plot_layout(ncol = 2, guides = "collect")
-```
-
-```{r stargazer, include=FALSE}
-# # stargazer is a great package, but I don't use it this time
-# do.call(stargazer, args = c(
-#   lmfit_credit_peak,
-#   lmfit_credit_trough,
-#   list(
-#     #type = "text",
-#     type = "latex",
-#     label = "tab-credit-peak",
-#     title = "Local projection",
-#     keep = c("Constant", "Credit"),
-#     dep.var.caption = "",
-#     #dep.var.labels.include = F,
-#     dep.var.labels = c(str_c("h=", 1:6), str_c("h=", 1:6)),
-#     covariate.labels = c("PEAK", "TROUGH", rep(NA, 10)),
-#     omit.stat = c("adj.rsq", "ser", "f")
-#   )
-# ))
+fig_lp_all
 ```
 
 
 ```{r lp-table}
-tbl_credit <- 
-  c(lmfit_credit_peak, lmfit_credit_trough) %>% 
-  batch_summarize(., coefs = list(
-    '(Intercept)' = '$\\mu$', 
-    'peak_Credit' = '$\\delta^{(P)}$', 
-    'trough_Credit' = '$\\delta^{(T)}$'
-  )) %>% slice(1,2,4,3) 
-
-tbl_house <- 
-  c(lmfit_house_peak, lmfit_house_trough) %>% 
-  batch_summarize(., coefs = list(
-    '(Intercept)' = '$\\mu$', 
-    'peak_House' = '$\\delta^{(P)}$', 
-    'trough_House' = '$\\delta^{(T)}$'
-  )) %>% slice(1,2,4,3) 
-
-tbl_leverage <- 
-  c(lmfit_leverage_peak, lmfit_leverage_trough) %>% 
-  batch_summarize(., coefs = list(
-    '(Intercept)' = '$\\mu$', 
-    'peak_Leverage' = '$\\delta^{(P)}$', 
-    'trough_Leverage' = '$\\delta^{(T)}$'
-  )) %>% slice(1,2,4,3) 
-
 bind_rows(tbl_credit, tbl_house, tbl_leverage) %>% 
   kbl(booktabs = T, escape = F, align = 'c',
       caption = "Real GDP gaps after financial cycle peaks and troughs, with controls",
-      col.names = c(" ", str_c("h=",0:6), str_c("h=",0:6))) %>% 
-  pack_rows(index = c("Credit cycle"=4, "Real estate cycle"=4, "Leverage cycle"=4),
+      col.names = c(" ", str_c("h=",1:6), str_c("h=",1:6))) %>% 
+  pack_rows(index = c("Credit cycle"=4, "House price cycle"=4, "Leverage cycle"=4),
             hline_after = TRUE) %>%
-  add_header_above(c(" ", "Quarters after peak"=7, "Quarters after trough"=7)) %>% 
-  add_header_above(c(" ", "Dependent variable: 100 × log GDP gap"=14)) %>% 
+  add_header_above(c(" ", "Quarters after peak"=6, "Quarters after trough"=6)) %>% 
+  add_header_above(c(" ", "Dependent variable: 100 × log GDP gap"=12)) %>% 
   footnote(general = paste0("Standard errors are heteroskedasticity and ",
-                            "autocorrelation consistent. $p$-values are ", 
-                            "reported in parentheses."), escape = F) %>% 
+                            "autocorrelation consistent."), escape = F) %>% 
   kable_styling(full_width = T) %>% 
   landscape()
 ```
-
 
 ## Bayesian VAR
 
@@ -1344,7 +744,7 @@ a financial expansion presages an immediate bump up in real output, and then a
 subsequent decline.
 
 ```{r imp-gdp, fig.cap="Impulse response of GDP to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("graph/imp_gdp.pdf", "graph/imp_gdp_acc.pdf"))
+knitr::include_graphics(c("fig/imp_gdp.pdf", "fig/imp_gdp_acc.pdf"))
 ```
 
 Figure \ref{fig:imp-cpi} shows the response of price level, measured by CPI, to
@@ -1355,7 +755,7 @@ after a positive credit shock. The rising house price has more enduring impact
 on price level -- the upward movement lasts for 12 quarters before its reversal.
 
 ```{r imp-cpi, fig.cap="Impulse response of CPI to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("graph/imp_cpi.pdf", "graph/imp_cpi_acc.pdf"))
+knitr::include_graphics(c("fig/imp_cpi.pdf", "fig/imp_cpi_acc.pdf"))
 ```
 
 Why the business cycle reverses its trend in two and a half years after a
@@ -1367,7 +767,7 @@ financial conditions and curbs real economic activities. This possibly explains
 the reversal of the business cycle after a short-run expansion.
 
 ```{r imp-ir, fig.cap="Impulse response of interest rate to innovations", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("graph/imp_ir.pdf", "graph/imp_ir_acc.pdf"))
+knitr::include_graphics(c("fig/imp_ir.pdf", "fig/imp_ir_acc.pdf"))
 ```
 
 
@@ -1378,7 +778,7 @@ decomposes the historical cycles of GDP and CPI into different shocks. A full
 list of historical decomposition can be found in Annex \ref{annex-hd-full}.
 
 ```{r hd-gdp, fig.cap="Historical decomposition", out.width="49%", fig.show="hold"}
-knitr::include_graphics(c("graph/hd_gdp.pdf", "graph/hd_cpi.pdf"))
+knitr::include_graphics(c("fig/hd_gdp.pdf", "fig/hd_cpi.pdf"))
 ```
 
 As shown in Figure \ref{fig:hd-gdp}, real GDP cycles are mostly contributed by
@@ -1400,9 +800,6 @@ importance of house price attenuated since 2016, as the authority adopted the
 
 ## Recession prediction
 
-```{r, include=FALSE}
-source("script/rec.R")
-```
 
 The last experiment is to test the predictive power of financial cycles for 
 recessions. Financial indicators have been found to have strong predictive 
@@ -1474,7 +871,7 @@ informative in predicting recessions.
 Among the three, credit has the best predictive power as a single predictor. 
 
 ```{r roc, fig.cap="Receiver Operating Characteristic Curve"}
-plot_roc
+fig_rec_roc
 ```
 
 Table \ref{tab:rec} compares the models with the three financial predictors
@@ -1510,7 +907,7 @@ subsequent recessions.
 This seems suggest housing price is even more forward-looking than credit.
 
 ```{r rec}
-table_rec %>% 
+tbl_rec %>% 
   kbl(booktabs = T, escape = F, 
       caption = "Recession prediction with financial cycles") %>% 
   add_header_above(c(" ", "OLS"=4, "Probit"=4)) %>% 
