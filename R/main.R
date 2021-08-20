@@ -12,6 +12,8 @@
 #'
 #' ===========================================================================
 
+# BEGIN OF SCRIPT ------------------------------------------------------------
+
 setwd("~/GitHub/fc")
 
 library(librarian)
@@ -40,21 +42,19 @@ source("R/ceic.R")
 ceic_hdl <- ceic_load("data/raw.m")
 data_raw <- ceic_hdl$fetch_all() 
 
-names(data_raw) <- c("date",
-                     "GDP",
-                     "CPI",
-                     "Credit",
-                     "Credit_GDP",
-                     "Leverage",
-                     "RR",
-                     "House")
+names(data_raw) <- c(
+  "date",
+  "GDP",
+  "CPI",
+  "Credit",
+  "Credit_GDP",
+  "Leverage",
+  "RR",
+  "House",
+  "SHCOMP"
+)
 
-
-# Cycle extraction -----------------------------------------------------------
-
-source("R/tstools.R")
-
-# HP filtered cycles
+# apply boosted-HP filter
 data_bhp <- 
   data_raw %>% 
   drop_na() %>%
@@ -63,12 +63,18 @@ data_bhp <-
   mutate(Credit = 100*BoostedHP(log(Credit)) %$% cycle) %>%
   mutate(Credit_GDP = BoostedHP(Credit_GDP) %$% cycle) %>%
   mutate(Leverage = BoostedHP(Leverage) %$% cycle) %>%
-  mutate(House = 100*BoostedHP(log(House)) %$% cycle) 
+  mutate(House = 100*BoostedHP(log(House)) %$% cycle) %>% 
+  mutate(SHCOMP = 100*BoostedHP(log(SHCOMP)) %$% cycle)
+
+
+# Cycle extraction -----------------------------------------------------------
+
+source("R/tstools.R")
 
 # cyclical working data
 data_cyl <- 
   data_bhp %>% 
-  select(-Credit_GDP) %>% 
+  select(date, GDP, CPI, Credit, House, Leverage, RR) %>% 
   filter(year(date) > 1997, year(date) < 2020) 
 
 # standardized cycles
@@ -283,7 +289,7 @@ fig_lp_all <-
   fig_lp$leverage_trough + 
   plot_layout(ncol = 2, guides = "collect")
 
-## LP: Tabulation -----------------------------------------------------------
+## LP: tabulation -----------------------------------------------------------
 
 # produce summary tables for regression results
 tbl_credit <- do.call(smart_summary, args = c(
@@ -429,3 +435,107 @@ tbl_rec <-
   ) %>% 
   rename("2-year moving average" = ".") %>% 
   slice(4:6, 1:3, 7:9)
+
+
+# transmission mechanism -----------------------------------------------------
+
+# load bond data
+data_bnd <- ceic_load("data/bnd.m")$fetch_all()
+
+names(data_bnd) <- c(
+  "date",
+  "TBI",    # SSE treasury bond index
+  "EBI",    # SSE enterprise bond index
+  "TB3Y",   # Treasury bond YTM
+  "CDB3Y",  # Policy financial bond YTM
+  "AAA3Y",  # AAA enterprise bond YTM
+  "AA3Y"    # AA midterm commercial paper YTM
+)
+  
+# joining with other variables
+tr_data <-
+  data_bnd %>% 
+  mutate(TBI_diff = TBI - lag(TBI)) %>% 
+  mutate(EBI_diff = EBI - lag(EBI)) %>% 
+  # pseudo spread: excess return of treasury bond relative to corporate bond
+  mutate(Spread = TBI_diff - EBI_diff) %>% 
+  select(date, Spread) %>% 
+  left_join(data_bhp, ., by = "date") %>% 
+  # take 2-year exponential moving average
+  mutate_at(vars(!date), ~ ema(.x, n=8)) %>% 
+  filter(year(date) < 2020)
+
+tr_plot <-
+  tr_data %>%
+  pivot_longer(!date) %>%
+  ggplot(aes(date, value)) + geom_line() +
+  facet_wrap( ~ name, scales = "free_y")
+
+
+# plot the impulse response from a local projection with or without
+# the coefficient from an interaction term
+plot_irfs2 <- function(lm_results, horizon, lab1="IRF1", lab2="IRF2") {
+  lm_results %>% 
+    map_dfr(~ .x$coefficients[c(1:2, length(.x$coefficients))]) %>% 
+    rename_with(~c("const", "beta", "interact")) %>% 
+    mutate(irf1 = const + beta) %>% 
+    mutate(irf2 = const + beta + interact) %>% 
+    ggplot(aes(x = horizon)) +
+    geom_line(aes(y = irf1, color = lab1)) +
+    geom_line(aes(y = irf2, color = lab2)) +
+    geom_vline(xintercept = 1, col = "grey") +
+    geom_hline(yintercept = 0, col = "grey") +
+    scale_x_continuous(breaks = horizon) +
+    scale_y_continuous(limits = c(-1,1)) +
+    labs(x = NULL, y = NULL) +
+    theme(aspect.ratio = 0.8) 
+}
+
+tr_horizon <- 1:8
+tr_controls <-  ~. +lag(GDP,1) + lag(GDP,2) + lag(GDP,3) + lag(GDP,4)
+
+# run local projections
+tr_credit_hp <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(House>1.3),tr_controls), tr_data))
+tr_credit_le <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Leverage>.9),tr_controls), tr_data))
+tr_credit_rr <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(RR>3.6),tr_controls), tr_data))
+tr_credit_sp <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Spread>-1),tr_controls), tr_data))
+tr_credit_sh <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(SHCOMP>3.8),tr_controls), tr_data))
+
+tr_irfs <- list(
+  credit_hp = plot_irfs2(tr_credit_hp, tr_horizon, "Credit", "Credit with high house price"),
+  credit_le = plot_irfs2(tr_credit_le, tr_horizon, "Credit", "Credit with high leverage"),
+  credit_rr = plot_irfs2(tr_credit_rr, tr_horizon, "Credit", "Credit with high interest rate"),
+  credit_sp = plot_irfs2(tr_credit_sp, tr_horizon, "Credit", "Credit with large (pseudo) spread"),
+  credit_sh = plot_irfs2(tr_credit_sh, tr_horizon, "Credit", "Credit with high equity price")
+)
+
+fig_tr_irfs <-
+  tr_irfs$credit_hp +
+  tr_irfs$credit_le +
+  tr_irfs$credit_rr +
+  tr_irfs$credit_sp +
+  tr_irfs$credit_sh +
+  plot_layout(ncol = 2)
+
+tbl_tr <- 
+  smart_summary(
+    tr_credit_hp[[4]], tr_credit_hp[[8]], 
+    tr_credit_le[[4]], tr_credit_le[[8]], 
+    tr_credit_rr[[4]], tr_credit_rr[[8]], 
+    tr_credit_sp[[4]], tr_credit_sp[[8]],
+    tr_credit_sh[[4]], tr_credit_sh[[8]], 
+    coefs = c("Credit"),
+    rename = ~ case_when(
+      .x == 'Credit:I(House > 1.3)TRUE'    ~ '× High House Price',
+      .x == 'Credit:I(Leverage > 0.9)TRUE' ~ '× High Leverage',
+      .x == 'Credit:I(RR > 3.6)TRUE'       ~ '× High Interest Rate',
+      .x == 'Credit:I(Spread > -1)TRUE'    ~ '× Large Spread',
+      .x == 'Credit:I(SHCOMP > 3.8)TRUE'   ~ '× High Equity Price',
+      TRUE ~ .x
+    ),
+    vcov = sandwich::NeweyWest,
+    stats = c("r.squared"), 
+    add_lines = list(Control = "Yes")
+  )
+
+# END OF SCRIPT --------------------------------------------------------------
