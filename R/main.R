@@ -252,32 +252,26 @@ data_lp <-
   rename_with(~gsub("value_", "", .) ,contains("value_"))
 
 # control variables in all regressions
-controls <- ~. +lag(GDP,1)+lag(GDP,2)+CPI + lag(CPI, 1)+RR + lag(RR,1)+
-  Credit + lag(Credit, 1) + House + lag(House,1) 
-horizon <- 0:6
+lp_controls <- ~. + lag(GDP,1) + lag(GDP,2) + lag(GDP, 3) + lag(GDP,4)
+lp_horizon <- 0:6
 
-lp_credit_peak <- map(horizon, ~ lm(update(lead(GDP,.x) ~ peak_Credit, controls), data_lp)) 
-lp_credit_trough <- map(horizon, ~ lm(update(lead(GDP,.x) ~ trough_Credit, controls), data_lp)) 
-lp_house_peak <- map(horizon, ~ lm(update(lead(GDP,.x) ~ peak_House, controls), data_lp)) 
-lp_house_trough <- map(horizon, ~ lm(update(lead(GDP,.x) ~ trough_House, controls), data_lp)) 
-lp_leverage_peak <- map(horizon, ~ lm(update(lead(GDP,.x) ~ peak_Leverage, controls), data_lp)) 
-lp_leverage_trough <- map(horizon, ~ lm(update(lead(GDP,.x) ~ trough_Leverage, controls), data_lp)) 
+lp_credit_peak     <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ peak_Credit, lp_controls), data_lp)) 
+lp_credit_trough   <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ trough_Credit, lp_controls), data_lp)) 
+lp_house_peak      <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ peak_House, lp_controls), data_lp)) 
+lp_house_trough    <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ trough_House, lp_controls), data_lp)) 
+lp_leverage_peak   <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ peak_Leverage, lp_controls), data_lp)) 
+lp_leverage_trough <- map(lp_horizon, ~ lm(update(lead(GDP,.x) ~ trough_Leverage, lp_controls), data_lp)) 
 
 ## LP: plotting -------------------------------------------------------------
 
-fig_lp <- list() # store subplots
-fig_lp$credit_peak <- lp_credit_peak %>% 
-  plot_irfs(horizon, title = "Quarters after credit cycle peaks")
-fig_lp$credit_trough <- lp_credit_trough %>% 
-  plot_irfs(horizon, title = "Quarters after credit cycle troughs")
-fig_lp$house_peak <- lp_house_peak %>% 
-  plot_irfs(horizon, title = "Quarters after house price peaks")
-fig_lp$house_trough <- lp_house_trough %>% 
-  plot_irfs(horizon, title = "Quarters after house price troughs")
-fig_lp$leverage_peak <- lp_leverage_peak %>% 
-  plot_irfs(horizon, title = "Quarters after leverage cycle peaks")
-fig_lp$leverage_trough <- lp_leverage_trough %>% 
-  plot_irfs(horizon, title = "Quarters after leverage cycle troughs")
+fig_lp <- list(
+  credit_peak     = lp_credit_peak %>% plot_irfs(lp_horizon, title = "Quarters after credit cycle peaks"),
+  credit_trough   = lp_credit_trough %>% plot_irfs(lp_horizon, title = "Quarters after credit cycle troughs"),
+  house_peak      = lp_house_peak %>% plot_irfs(lp_horizon, title = "Quarters after house price peaks"),
+  house_trough    = lp_house_trough %>% plot_irfs(lp_horizon, title = "Quarters after house price troughs"),
+  leverage_peak   = lp_leverage_peak %>% plot_irfs(lp_horizon, title = "Quarters after leverage cycle peaks"),
+  leverage_trough = lp_leverage_trough %>% plot_irfs(lp_horizon, title = "Quarters after leverage cycle troughs")
+)
 
 # patch all sub-plot into one 
 fig_lp_all <-
@@ -455,8 +449,8 @@ names(data_bnd) <- c(
 # joining with other variables
 tr_data <-
   data_bnd %>% 
-  mutate(TBI_diff = TBI - lag(TBI)) %>% 
-  mutate(EBI_diff = EBI - lag(EBI)) %>% 
+  mutate(TBI_diff = 100*(log(TBI) - log(lag(TBI)))) %>% 
+  mutate(EBI_diff = 100*(log(EBI) - log(lag(EBI)))) %>% 
   # pseudo spread: excess return of treasury bond relative to corporate bond
   mutate(Spread = TBI_diff - EBI_diff) %>% 
   select(date, Spread) %>% 
@@ -471,71 +465,153 @@ tr_plot <-
   ggplot(aes(date, value)) + geom_line() +
   facet_wrap( ~ name, scales = "free_y")
 
-
 # plot the impulse response from a local projection with or without
 # the coefficient from an interaction term
-plot_irfs2 <- function(lm_results, horizon, lab1="IRF1", lab2="IRF2") {
+plot_irfs2 <- function(lm_results, horizon, title=NULL, ymax=1) {
   lm_results %>% 
     map_dfr(~ .x$coefficients[c(1:2, length(.x$coefficients))]) %>% 
     rename_with(~c("const", "beta", "interact")) %>% 
-    mutate(irf1 = const + beta) %>% 
-    mutate(irf2 = const + beta + interact) %>% 
+    mutate(irf1 = beta) %>% 
+    mutate(irf2 = beta + interact) %>% 
     ggplot(aes(x = horizon)) +
-    geom_line(aes(y = irf1, color = lab1)) +
-    geom_line(aes(y = irf2, color = lab2)) +
+    geom_line(aes(y = irf1, col = "IRF"), linetype="dashed") +
+    geom_line(aes(y = irf2, col = "Conditioned IRF")) +
     geom_vline(xintercept = 1, col = "grey") +
     geom_hline(yintercept = 0, col = "grey") +
     scale_x_continuous(breaks = horizon) +
-    scale_y_continuous(limits = c(-1,1)) +
-    labs(x = NULL, y = NULL) +
+    scale_y_continuous(limits = c(-ymax,ymax)) +
+    labs(x = title, y = NULL) +
+    theme(aspect.ratio = 0.8) 
+}
+
+# plot impulse response conditioned on multiple quantiles
+plot_irfs3 <- function(lm1, lm2, horizon, title=NULL, ymax=1.2) {
+  # conditioned .50 quantile impulse response
+  irfs_1 <- 
+    map_dfr(lm1, ~ .x$coefficients[c(1:2,length(.x$coefficients))]) %>% 
+    rename_with(~c("const", "beta", "delta")) %>% 
+    mutate(h=horizon) %>% 
+    mutate(irf1 = beta) %>% 
+    mutate(irf2 = beta + delta) %>% 
+    select(h, irf1, irf2)
+  # conditioned .75 quantile impulse response
+  irfs_2 <- 
+    map_dfr(lm2, ~ .x$coefficients[c(1:2,length(.x$coefficients))]) %>% 
+    rename_with(~c("const", "beta", "delta")) %>% 
+    mutate(h=horizon) %>% 
+    mutate(irf3 = beta + delta) %>% 
+    select(h, irf3)
+  
+  full_join(irfs_1, irfs_2, by = "h") %>% 
+    ggplot(aes(x = h)) +
+    geom_line(aes(y = irf1, col = "IRF"), linetype="dashed") +
+    geom_line(aes(y = irf2, col = "Conditioned IRF (75%)")) +
+    geom_line(aes(y = irf3, col = "Conditioned IRF (85%)")) +
+    geom_vline(xintercept = 1, col = "grey") +
+    geom_hline(yintercept = 0, col = "grey") +
+    scale_x_continuous(breaks = horizon) +
+    scale_y_continuous(limits = c(-ymax,ymax)) +
+    #scale_color_manual(values = c("coral", "red", "black")) +
+    labs(x = title, y = NULL) +
     theme(aspect.ratio = 0.8) 
 }
 
 tr_horizon <- 1:8
 tr_controls <-  ~. +lag(GDP,1) + lag(GDP,2) + lag(GDP,3) + lag(GDP,4)
 
+## Quantile distribution
+## .var      .50  .75  .80  .85  .90
+## House    0.42 1.30 1.52 1.70 1.82
+## Stock    0.12 3.82 6.22 7.40 8.73
+## Leverage 0.06 0.99 1.14 1.42 1.76
+## Spread   -.42 -.21 -.13 0.22 0.38
+## RR       2.85 3.60 3.78 3.90 4.43
+
 # run local projections
-tr_credit_hp <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(House>1.3),tr_controls), tr_data))
-tr_credit_le <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Leverage>.9),tr_controls), tr_data))
-tr_credit_rr <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(RR>3.6),tr_controls), tr_data))
-tr_credit_sp <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Spread>-1),tr_controls), tr_data))
-tr_credit_sh <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(SHCOMP>3.8),tr_controls), tr_data))
+tr_credit_hp_p50 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(House>0.4), tr_controls), tr_data))
+tr_credit_hp_p75 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(House>1.3), tr_controls), tr_data))
+tr_credit_hp_p85 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(House>1.7), tr_controls), tr_data))
+
+tr_credit_sh_p50 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(SHCOMP>0.1),tr_controls), tr_data))
+tr_credit_sh_p75 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(SHCOMP>3.8),tr_controls), tr_data))
+tr_credit_sh_p85 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(SHCOMP>7.4),tr_controls), tr_data))
+
+tr_credit_le_p50 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Leverage>0.1),tr_controls), tr_data))
+tr_credit_le_p75 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Leverage>0.9),tr_controls), tr_data))
+tr_credit_le_p85 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Leverage>1.4),tr_controls), tr_data))
+
+tr_credit_sp_p50 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Spread>-.4),tr_controls), tr_data))
+tr_credit_sp_p75 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Spread>-.2),tr_controls), tr_data))
+tr_credit_sp_p85 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(Spread>0.2),tr_controls), tr_data))
+
+tr_credit_rr_p50 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(RR>2.8),tr_controls), tr_data))
+tr_credit_rr_p75 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(RR>3.6),tr_controls), tr_data))
+tr_credit_rr_p85 <- map(tr_horizon, ~lm(update(lead(GDP, .x) ~ Credit + Credit:I(RR>3.9),tr_controls), tr_data))
+
+# tr_irfs <- list(
+#   credit_hp = plot_irfs3(tr_credit_hp_p50, tr_credit_hp_p75, tr_horizon, title = "(a) Credit with high house price"),
+#   credit_sh = plot_irfs3(tr_credit_sh_p50, tr_credit_sh_p75, tr_horizon, title = "(b) Credit with high equity price"),
+#   credit_le = plot_irfs3(tr_credit_le_p50, tr_credit_le_p75, tr_horizon, title = "(c) Credit with high leverage"),
+#   credit_rr = plot_irfs3(tr_credit_rr_p50, tr_credit_rr_p75, tr_horizon, title = "(d) Credit with high interest rate"),
+#   credit_sp = plot_irfs3(tr_credit_sp_p50, tr_credit_sp_p75, tr_horizon, title = "(e) Credit with large spread")
+# )
 
 tr_irfs <- list(
-  credit_hp = plot_irfs2(tr_credit_hp, tr_horizon, "Credit", "Credit with high house price"),
-  credit_le = plot_irfs2(tr_credit_le, tr_horizon, "Credit", "Credit with high leverage"),
-  credit_rr = plot_irfs2(tr_credit_rr, tr_horizon, "Credit", "Credit with high interest rate"),
-  credit_sp = plot_irfs2(tr_credit_sp, tr_horizon, "Credit", "Credit with large (pseudo) spread"),
-  credit_sh = plot_irfs2(tr_credit_sh, tr_horizon, "Credit", "Credit with high equity price")
+  credit_hp = plot_irfs3(tr_credit_hp_p75, tr_credit_hp_p85, tr_horizon, title = "(a) Credit with high house price"),
+  credit_sh = plot_irfs3(tr_credit_sh_p75, tr_credit_sh_p85, tr_horizon, title = "(b) Credit with high equity price"),
+  credit_le = plot_irfs3(tr_credit_le_p75, tr_credit_le_p85, tr_horizon, title = "(c) Credit with high leverage"),
+  credit_rr = plot_irfs3(tr_credit_rr_p75, tr_credit_rr_p85, tr_horizon, title = "(d) Credit with high interest rate"),
+  credit_sp = plot_irfs3(tr_credit_sp_p75, tr_credit_sp_p85, tr_horizon, title = "(e) Credit with large spread")
 )
 
 fig_tr_irfs <-
   tr_irfs$credit_hp +
+  tr_irfs$credit_sh +
   tr_irfs$credit_le +
   tr_irfs$credit_rr +
   tr_irfs$credit_sp +
-  tr_irfs$credit_sh +
-  plot_layout(ncol = 2)
+  plot_layout(ncol = 2, guides = "collect")
 
-tbl_tr <- 
+tbl_tr_p75 <- 
   smart_summary(
-    tr_credit_hp[[4]], tr_credit_hp[[8]], 
-    tr_credit_le[[4]], tr_credit_le[[8]], 
-    tr_credit_rr[[4]], tr_credit_rr[[8]], 
-    tr_credit_sp[[4]], tr_credit_sp[[8]],
-    tr_credit_sh[[4]], tr_credit_sh[[8]], 
+    tr_credit_hp_p75[[4]], tr_credit_hp_p75[[8]], 
+    tr_credit_sh_p75[[4]], tr_credit_sh_p75[[8]], 
+    tr_credit_le_p75[[4]], tr_credit_le_p75[[8]], 
+    tr_credit_rr_p75[[4]], tr_credit_rr_p75[[8]], 
+    tr_credit_sp_p75[[4]], tr_credit_sp_p75[[8]],
     coefs = c("Credit"),
     rename = ~ case_when(
       .x == 'Credit:I(House > 1.3)TRUE'    ~ '× High House Price',
       .x == 'Credit:I(Leverage > 0.9)TRUE' ~ '× High Leverage',
       .x == 'Credit:I(RR > 3.6)TRUE'       ~ '× High Interest Rate',
-      .x == 'Credit:I(Spread > -1)TRUE'    ~ '× Large Spread',
+      .x == 'Credit:I(Spread > -0.48)TRUE'    ~ '× Large Spread',
       .x == 'Credit:I(SHCOMP > 3.8)TRUE'   ~ '× High Equity Price',
       TRUE ~ .x
     ),
     vcov = sandwich::NeweyWest,
     stats = c("r.squared"), 
-    add_lines = list(Control = "Yes")
+    add_lines = list(Controls = "Yes")
+  )
+
+tbl_tr_p85 <- 
+  smart_summary(
+    tr_credit_hp_p85[[4]], tr_credit_hp_p85[[8]], 
+    tr_credit_sh_p85[[4]], tr_credit_sh_p85[[8]], 
+    tr_credit_le_p85[[4]], tr_credit_le_p85[[8]], 
+    tr_credit_rr_p85[[4]], tr_credit_rr_p85[[8]], 
+    tr_credit_sp_p85[[4]], tr_credit_sp_p85[[8]],
+    coefs = c("Credit"),
+    rename = ~ case_when(
+      .x == 'Credit:I(House > 1.7)TRUE'    ~ '× High House Price',
+      .x == 'Credit:I(Leverage > 1.4)TRUE' ~ '× High Leverage',
+      .x == 'Credit:I(RR > 3.9)TRUE'       ~ '× High Interest Rate',
+      .x == 'Credit:I(Spread > 0.2)TRUE'    ~ '× Large Spread',
+      .x == 'Credit:I(SHCOMP > 7.4)TRUE'   ~ '× High Equity Price',
+      TRUE ~ .x
+    ),
+    vcov = sandwich::NeweyWest,
+    stats = c("r.squared"), 
+    add_lines = list(Controls = "Yes")
   )
 
 # END OF SCRIPT --------------------------------------------------------------
