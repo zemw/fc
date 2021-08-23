@@ -3,6 +3,7 @@ output:
   pdf_document: default
   html_document: default
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F) 
 knitr::opts_chunk$set(fig.pos = 'htpb', fig.align = 'center') 
@@ -362,6 +363,16 @@ If such a financing structure is encountered with a negative shock so that
 cash income can no longer validate the financing structure, the system breaks
 down and heads toward a financial crisis.
 
+<!-- We believe the relationship between finance and real economic activities is not  -->
+<!-- simply captured by saving-investment dynamics or the quantity theory of money. -->
+<!-- "The banking system does not simply transfer real resources... it generates  -->
+<!-- (nominal) purchasing power." [@Borio2014] -->
+<!-- Because the existence of a positive feedback loop between credit creation -->
+<!-- and asset prices, financial expansion and contraction tends to be self- -->
+<!-- reinforcing and generates economic fluctuations internally. -->
+<!-- Lasting booms result in low risk perception, excessive indebtedness, and  -->
+<!-- vulnerable financing structure, which erode the safety margin of the system -->
+<!-- and internally destabilizing.  -->
 
 
 # Data and methodology {#data}
@@ -452,7 +463,7 @@ troughs must appear alternately, that is there must be one and only one peaks
 filtered cycles of the variables together with the identified turning points.
 
 ```{r cycle-tp, fig.cap="Business cycles and turning points"}
-fig_cycles
+suppressWarnings(print(fig_cycles)) 
 ```
 
 # Basic features of financial cycles in China {#features}
@@ -573,7 +584,7 @@ fig_es_all
 
 # Financial cycles and business cycles {#regress}
 
-## Aftermath of financial cycle peaks and troughs
+## Aftermath of financial cycle peaks and troughs {#sec:lp}
 
 To examine the predictability of financial cycle peaks and troughs for 
 subsequent real GDP more formally, this section estimates a local projection 
@@ -673,7 +684,7 @@ are controlled. On the other hand, leverage ratio itself has the weakest
 predictability for subsequent real output levels. 
 
 ```{r lp-coef, fig.cap="Real GDP gaps after financial cycle peaks and troughs, with controls", fig.asp=1.2}
-fig_lp_all
+print(fig_lp_all)
 ```
 
 
@@ -692,7 +703,7 @@ bind_rows(tbl_credit, tbl_house, tbl_leverage) %>%
   landscape()
 ```
 
-## Bayesian VAR
+## Bayesian VAR {#sec:var}
 
 This section employs a VAR model to elicit the inter-relationship between the
 variables of interest. The reduced-form of the model is as following
@@ -798,7 +809,7 @@ importance of house price attenuated since 2016, as the authority adopted the
 "long-term mechanism" for real estate regulation.
 
 
-## Recession prediction
+## Recession prediction {#sec:roc}
 
 
 The last experiment is to test the predictive power of financial cycles for 
@@ -837,7 +848,7 @@ Due to the well-known problems with linear probability models -- the predicted
 values are not confined within 0 and 1, I also estimate a probit model:
 
 \begin{equation}
-\label{eq:rec-ols}
+\label{eq:rec-probit}
 \text{probit} (p_t) = \alpha + \beta(L) \small\text{PREDICTOR}_t + \mathbf\Gamma(L) \mathbf X_t + e_t.
 \end{equation}
 
@@ -919,9 +930,224 @@ tbl_rec %>%
   landscape()
 ```
 
-# Discussion
+# Transmission mechanism
 
-The last section in the document will be used as the section title for the bibliography.
+This section explores the possible transmission mechanism between financial 
+fluctuations and real economic activities; especially how financial booms
+reverse itself into downturns. 
+Based on the literature review in Section \ref{litr}, financial booms have
+a tendency to self-reinforce, because there is a positive feedback loop between
+borrowing constraints and asset prices, which we termed as "financial accelerator
+effect". 
+Higher asset prices inflate collateral values and encourage excessive borrowing, 
+which in turn bids up asset prices even further. 
+But higher asset prices require more cash flows to justify itself, once the
+cash flows are no longer sufficient to meet the requirement -- 
+be it a negative shock to income cash flows or a tightening of refinancing 
+conditions -- 
+assets have to be sold for cash, which triggers a negative reinforcing process
+of declining asset prices and tightening credit conditions, which transmits
+into a slowdown of economic activities. 
+If this theory is true, we would expect the higher the asset prices, the stronger
+the booms; but higher asset prices also presage more severe downturns that would 
+follow. 
+To verify this claim with empirical evidence, I estimate a specification similar
+to Equation \ref{eq:lp-peak} and \ref{eq:lp-trough}, but with interaction terms.
+
+\begin{equation}
+\label{eq:tr-credit}
+y_{t+h} = \mu_h + \beta_h \text{Credit}_t + 
+\delta_h \text{Credit}_t \times \mathbbm{1}(P_t>\theta) + 
+\epsilon_{t+h} 
+\end{equation}
+
+I focus on credit in this section as the single proxy for financial dynamics, 
+and interact it with various conditions on asset prices or interest rates. 
+For example, $P_t$ could be house price, equity price, or interest rate.
+$\theta$ is a threshold that could be the medium or the upper quantile of 
+a variable.
+I also assume credit leads output in the sequence of response, that is credit 
+is affected by output contemporaneously, but output responds to credit changes 
+only with a lag. Therefore, 
+$\{\beta_1, \beta_2, \dots\}$ capture the responses of output to one unit shock
+of credit; while 
+$\{\beta_1+\delta_1, \beta_2+\delta_2, \dots\}$ capture the responses of output
+to credit shock under certain conditions.
+To keep the lags manageable, I take two-year exponential moving average for 
+all variables in the regression. 
+Four lags of GDP are included as controls to account for natural business 
+cycle dynamics. 
+
+I first estimate Equation \ref{eq:tr-credit} conditioned on house price 
+(relative to its trend) being above a certain threshold for a horizon of 
+2 years ($h=1,2,\dots, 8$). 
+Figure \ref{fig:tr-irfs} Panel (a) reports the impulse responses conditioned
+on $\theta$ being the 75th and 85th percentile respectively.
+The result fits in the self-reinforcing theory very well. 
+The credit booms associated with high house prices are much stronger than
+otherwise. Conditioned on the house price (relative to its trend) above its 
+85th percentile, during boom time, the output gap is roughly 0.6 percent higher 
+than average; and in subsequent downturns, the negative output gap is more
+than 1 percent lower.
+The result is consistent with the findings based on developed countries such as
+@Mian2017.
+It is not surprising that housing prices play such an important role given the 
+fact that houses are not only the most common collateral for credit but also 
+home mortgage itself contributes a significant proportion of credit creation. 
+
+I also estimate impulse responses conditioned on high equity prices. 
+I use the Shanghai Composite Index (HP-filtered) as a representative index
+for equity prices. 
+^[In the recent decade, Shanghai Composite Index is becoming less representative 
+for the overall performance of Chinese equity market due to the growth of other 
+stock exchanges. Nonetheless, the index provides the longest historical 
+record of the equity market in the country.]
+Similar to house prices, we would expect a positive feedback loop between
+equity prices and credit creation. We would also expect a less stronger effect 
+than house prices, because the equity market in China is still immature and
+accounts for a much smaller share of total wealth.
+The impulse response in Figure \ref{fig:tr-irfs} Panel (b) confirms our 
+conjecture: credit expansion coupled with high equity prices creates a
+stronger economic boom, and subsequently, a worse recession. 
+But the magnitude is roughly half of the magnitude conditioned on house prices.
+The result is consistent with the findings from @Claessens2012. 
+Even for developed economies, house prices are more importantly associated with
+the strength of booms and the depth of recessions than equity prices. 
+Nonetheless, it is worth to point out the result here must be interpreted with 
+a caveat. 
+It is well-known that equity market is forward-looking, high equity prices 
+reflect optimistic expectations from the investors, which itself reasonably
+foresees higher growth in the future. 
+Therefore, the evidence is consistent with the collateral constraint theory
+but not necessarily proves it. 
+
+
+```{r tr-irfs, fig.cap="Response of GDP to conditional credit impulse", fig.asp=1.2}
+print(fig_tr_irfs)
+```
+
+To address the argument that leverage matters more than credit to stability, 
+I estimate Equation \ref{eq:tr-credit} conditioned on high leverage ratios.
+Figure \ref{fig:tr-irfs} Panel (c) shows that, conditioned on leverage ratios
+above the 75th percentile, booms are sluggish, and the subsequent downturns
+are more severe; conditioned on leverage ratios above the 85th percentile, 
+booms are suppressed, the output directly falls below the trend and continues
+declining.
+The evidence roughly supports the argument that high leverage tends to destabilize. 
+With high debt to income ratio, business are reluctant to expand, resulting 
+in slowdown of growth.
+Recessions with high leverage tend to be more severe and prolonged, because
+it takes time to repay or restructure debt burdens, and over indebtedness may 
+trigger a negative reinforcing process of debt, default and deflation as
+described by @Fisher1933.
+However, it needs to be addressed that high leverage ratio could be the result 
+of either excessive debt burdens (large numerator) or low income growth (small
+denominator). 
+High leverage ratios probably already contain information of low income growth.
+Therefore the result shown in Panel (c) is at best a upper bound estimate.
+
+According to @minsky2008, financing structure is critical to the stability of 
+the economy. In boom times, with low perceived risk, business tends to engage 
+in more vulnerable speculative financing behaviors. 
+The result is the whole system becomes more sensitive to negative shocks to
+financing conditions such as an interest rate hike. 
+We do not have direct measures of the changes of financing structure, but it 
+is understandable that interest rate will play a key role in any financial 
+arrangement. 
+During periods of expansion, competition for credit resources bids up the
+interest rates, rendering a larger proportion of borrowing unprofitable, 
+which eventually ends the expansion and reverse the trend. 
+It follows that, the stronger the boom, the higher the interest rates it would 
+entail, the higher the probability of vulnerable financing behaviors, and 
+therefore the more devastating the following recession would become. 
+The evidence shown in Figure \ref{fig:tr-irfs} Panel (d) is consistent this 
+reasoning, in which the impulse response is conditioned on high interest rate, 
+proxied by short-term repo rates.
+Note that higher interest rate does not stifle growth immediately, but coexists
+with higher growth for some time, this reflects the pro-cyclical behavior of 
+interest rate. 
+There is a two-way relationship between interest rate and output growth. 
+On the one hand, higher growth entails higher return on capital, hence higher
+interest rate. This could be deemed as "growth effect". 
+On the other hand, higher interest rates discourage consumption and investment, 
+because it lowers the marginal utility of current spending relative to future
+spending. This is the "discounting effect".
+In fast growing economies with sustaining high interest rate, the "growth effect"
+usually dominates the "discounting effect", until high interest rates are exerted
+by policy makers for sufficient long time to cool down the growth engine.
+
+
+@krishnamurthy2017 finds that the severity of the decline in output is informed
+by the size of the increase of credit spread together with the growth rate of 
+credit. 
+A dramatic increase in credit spread (the spreads between higher and lower 
+graded bonds) is a sign of credit crunch, which drains financial resources 
+from business, especially those with low creditworthiness. 
+An increase in credit spread might be the result of either changing market
+conditions or changing regulation requirements. 
+In either case, if the large credit spreads were to persist, it would severely 
+impair economic activities. 
+To verity this claim,  I constructed a "pseudo credit spread" from the Treasury 
+Bond Index and the Corporate Bond Index published by Shanghai Stock Exchange.
+^[Data on the yield of bonds with different credit ratings are available only 
+from 2007. The limited data points significantly undercut the validity of the 
+study. Although the Shanghai Stock Exchange (SSE) is not the primary marketplace 
+for bond trading in China, the Treasury/Corporate Bond Indices published by SSE
+enable us to extend the data to 2003.]
+I calculate the quarterly growth of the indices and take the 2-year exponential 
+moving average.
+In normal times, corporate bonds will outperform Treasury bonds as they offer
+higher yields. But in the time of credit crunch, Treasury bonds will perform
+better because investors flee to safe-heaven assets. 
+Therefore, the difference between the return of Treasury Bond Index and 
+Corporate Bond Index could serve as an rough approximation for credit crunch.
+I therefore term it as "pseudo credit spread". 
+The impulse response conditioned on the pseudo credit spread are reported in
+Figure \ref{fig:tr-irfs} Panel (e).
+Conditioned on large spread, the credit booms do not pull up immediately, but
+continue to expand even higher; but it ends up slightly worse than average.
+This result is barely consistent with @krishnamurthy2017. 
+We would expect the downturn comes more severely with large credit spread, 
+according to the theory; it is hard to reconcile the fact that GDP expands 
+even higher in presence of increasing credit spread.
+A possible explanation could be low pricing efficiency of China's bond market. 
+As @chunjing2020 documented, the credit spread in China's bond market exhibits 
+pro-cyclical behavior. 
+Higher spread does not necessarily reflect tightening credit conditions but 
+higher growth rate. 
+Nonetheless, due to the limitation of the data, this empirical exercise only 
+provides limited validity and the conclusion made here should be regarded as
+tentative.
+
+Table \ref{tab:tr-sum} provides the tabulation of the above investigation. 
+I only report the results conditioned on the 85th percentile for clarity.
+To summarize, our results are broadly consistent with the "financial accelerator"
+theory, and confirm the positive feedback loop among asset prices, credit 
+expansion, and output growth; in the meanwhile, cash flows to fulfill debt 
+requirement and interest rates are import transmission mechanism.
+We also find peculiar behaviors of interest rate and credit spread.
+The peculiarities are not consistent with common expectation but, given the 
+fast-growing context, they do not falsify the transmission mechanism either. 
+It is worth to emphasize again, the empirical exercise here only shows itself 
+consistent with the theory, but not necessarily proves it, since we do not 
+have causal interpretations to these results. 
+
+
+```{r tr-sum}
+tbl_tr_p85 %>% 
+  kbl(booktabs = T, escape = F, 
+      caption = "Response of GDP to conditional credit impulse", 
+      col.names = c(" ", rep(c("1 year", "2 years"), times = 5))) %>% 
+  add_header_above(c(" ", "(1)"=2, "(2)"=2, "(3)"=2, "(4)"=2, "(5)"=2)) %>% 
+  add_header_above(c("", "Dependent variable: GDP gap, 2-year MA"=10)) %>% 
+  column_spec(1, width = "10em") %>% 
+  column_spec(2:11, width = "4em") %>% 
+  footnote(general = str_c(
+    "Standard errors reported in parentheses are heteroskedasticity ",
+    "and autocorrelation consistent."
+  )) %>% 
+  landscape()
+```
 
 
 \cleardoublepage
