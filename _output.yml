@@ -1,3 +1,4 @@
 bookdown::pdf_book:
   base_format: rticles::oup_article
   keep_tex: yes
+  extra_dependencies: ["bbm"]
